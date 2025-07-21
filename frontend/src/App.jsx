@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import Sidebar from "./components/Sidebar";
-import Footer from "./components/Footer";
+// import Footer from "./components/Footer";
 import Dashboard from "./pages/Dashboard";
 // import TasksPage from "./pages/TasksPage";
 // import JournalPage from "./pages/JournalPage";

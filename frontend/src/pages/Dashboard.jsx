@@ -18,15 +18,15 @@ function Dashboard() {
       <h1 className="text-3xl font-bold">Dashboard</h1>
       <section className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Today's Tasks</h2>
-        {/* <TaskList tasks={todayTasks} /> */}
+        <TaskList tasks={todayTasks} />
       </section>
       <section className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Quick Journal Entry</h2>
-        {/* <JournalEntry isQuickAdd={true} /> */}
+        <JournalEntry isQuickAdd={true} />
       </section>
       <section className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Goals & Habits</h2>
-        {/* <GoalTracker goals={staticGoals} /> */}
+        <GoalTracker goals={staticGoals} />
       </section>
       <section className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Recent Entries</h2>
