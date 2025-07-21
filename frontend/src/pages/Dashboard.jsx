@@ -4,9 +4,9 @@ import {
   staticJournalEntries,
   staticGoals,
 } from "../data/staticData";
-// import TaskList from "../components/TaskList";
-// import JournalEntry from "../components/JournalEntry";
-// import GoalTracker from "../components/GoalTracker";
+import TaskList from "../components/TaskList";
+import JournalEntry from "../components/JournalEntry";
+import GoalTracker from "../components/GoalTracker";
 
 function Dashboard() {
   const today = "2025-07-19";
