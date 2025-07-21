@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { AppContext } from "../context/AppContext";
 
 const JournalEntry = ({
   isQuickAdd = false,
   availableTasks = [],
-  theme = "light",
+
   onSubmit = null,
 }) => {
+  const { theme } = useContext(AppContext);
   const [content, setContent] = useState("");
   const [mood, setMood] = useState("Neutral");
   const [linkedTasks, setLinkedTasks] = useState([]);

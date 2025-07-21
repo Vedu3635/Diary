@@ -37,7 +37,7 @@ const Sidebar = () => {
           theme === "dark"
             ? "from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
             : "from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-        } text-white p-2 rounded-lg shadow-lg transition-all duration-200`}
+        } text-white p-2 rounded-lg  transition-all duration-200`}
       >
         {isOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
@@ -61,7 +61,7 @@ const Sidebar = () => {
             : "from-gray-50 to-white"
         } backdrop-blur-xl border-r ${
           theme === "dark" ? "border-gray-700" : "border-gray-200"
-        } shadow-2xl z-40 transition-all duration-300 ease-in-out ${
+        }  z-40 transition-all duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0 w-56`}
         style={{ top: "64px", height: "calc(100vh - 64px)" }}

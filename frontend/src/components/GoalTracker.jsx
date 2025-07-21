@@ -1,13 +1,8 @@
-import React, { useState } from "react";
-
-const GoalTracker = ({
-  goals = [],
-  isCompact = false,
-  showActions = true,
-  theme = "light",
-}) => {
+import React, { useState, useContext } from "react";
+import { AppContext } from "../context/AppContext";
+const GoalTracker = ({ goals = [], isCompact = false, showActions = true }) => {
   const [goalList, setGoalList] = useState(goals);
-
+  const { theme } = useContext(AppContext);
   // Default goals if none provided
   const defaultGoals = [
     {
