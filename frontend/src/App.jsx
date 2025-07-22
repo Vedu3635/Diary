@@ -4,7 +4,7 @@ import NavBar from "./components/NavBar";
 import Sidebar from "./components/Sidebar";
 // import Footer from "./components/Footer";
 import Dashboard from "./pages/Dashboard";
-// import TasksPage from "./pages/TasksPage";
+import TasksPage from "./pages/TasksPage";
 // import JournalPage from "./pages/JournalPage";
 // import CalendarPage from "./pages/CalendarPage";
 // import InsightsPage from "./pages/InsightsPage";
@@ -32,10 +32,10 @@ function AppContent() {
           >
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              {/* <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/journal" element={<JournalPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/insights" element={<InsightsPage />} /> */}
+              <Route path="/tasks" element={<TasksPage />} />
+              {/* <Route path="/journal" element={<JournalPage />} /> */}
+              {/* <Route path="/calendar" element={<CalendarPage />} /> */}
+              {/* <Route path="/insights" element={<InsightsPage />} />  */}
             </Routes>
           </main>
         </div>
