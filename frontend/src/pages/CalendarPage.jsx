@@ -500,10 +500,6 @@ const CalendarPage = () => {
                   <span className="font-semibold text-green-600">12</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  className=
-                  {`text-sm  ${
-                    theme === "dark" ? "text-gray-400" : "text-gray-500"
-                  }`}
                   <span
                     className={`text-sm  ${
                       theme === "dark" ? "text-gray-400" : "text-gray-500"

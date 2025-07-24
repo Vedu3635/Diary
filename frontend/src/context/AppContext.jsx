@@ -1,56 +1,48 @@
-import { createContext, useState, useEffect } from "react";
+// src/context/AppContext.jsx
+import React, { createContext, useState, useEffect, useMemo } from "react";
 import {
   staticTasks,
   staticJournalEntries,
   staticGoals,
-  staticSettings,
+  staticCalendarEvents,
 } from "../data/staticData";
 
 export const AppContext = createContext();
 
-export function AppProvider({ children }) {
+export const AppProvider = ({ children }) => {
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("theme") || "light"
+  );
   const [tasks, setTasks] = useState(staticTasks);
   const [journalEntries, setJournalEntries] = useState(staticJournalEntries);
   const [goals, setGoals] = useState(staticGoals);
-  const [settings, setSettings] = useState(staticSettings);
-  const [theme, setTheme] = useState(() => {
-    // Initialize from localStorage or fallback to staticSettings.theme
-    return localStorage.getItem("theme") || staticSettings.theme;
-  });
+  const [calendarEvents, setCalendarEvents] = useState(staticCalendarEvents);
 
   useEffect(() => {
-    // Apply theme on mount
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    // Save theme to localStorage
     localStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    setSettings({ ...settings, theme: newTheme });
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  return (
-    <AppContext.Provider
-      value={{
-        tasks,
-        setTasks,
-        journalEntries,
-        setJournalEntries,
-        goals,
-        setGoals,
-        settings,
-        setSettings,
-        theme,
-        toggleTheme,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      theme,
+      toggleTheme,
+      tasks,
+      setTasks,
+      journalEntries,
+      setJournalEntries,
+      goals,
+      setGoals,
+      calendarEvents,
+      setCalendarEvents,
+    }),
+    [theme, tasks, journalEntries, goals, calendarEvents]
   );
-}
+
+  return (
+    <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
+  );
+};
