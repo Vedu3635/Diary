@@ -37,25 +37,25 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
       value: "happy",
       icon: Smile,
       color: "text-green-500",
-      bg: "bg-green-100 dark:bg-green-900/30",
+      bg: theme === "dark" ? "bg-green-900/30" : "bg-green-100",
     },
     {
       value: "neutral",
       icon: Meh,
       color: "text-gray-500",
-      bg: "bg-gray-100 dark:bg-gray-800",
+      bg: theme === "dark" ? "bg-gray-800" : "bg-gray-100",
     },
     {
       value: "sad",
       icon: Frown,
       color: "text-blue-500",
-      bg: "bg-blue-100 dark:bg-blue-900/30",
+      bg: theme === "dark" ? "bg-blue-900/30" : "bg-blue-100",
     },
     {
       value: "excited",
       icon: Heart,
       color: "text-red-500",
-      bg: "bg-red-100 dark:bg-red-900/30",
+      bg: theme === "dark" ? "bg-red-900/30" : "bg-red-100",
     },
   ];
 
@@ -125,7 +125,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
           </button>
         </div>
       </div>
-
       {/* Title Input */}
       <div className="mb-4">
         <input
@@ -140,7 +139,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
           } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
         />
       </div>
-
       {/* Mood Selector */}
       <div className="mb-4">
         <label
@@ -168,7 +166,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
           ))}
         </div>
       </div>
-
       {/* Rich Text Toolbar */}
       <div
         className={`flex flex-wrap gap-1 p-2 mb-2 rounded-lg border ${
@@ -198,7 +195,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
           </button>
         ))}
       </div>
-
       {/* Content Editor */}
       <div
         ref={editorRef}
@@ -215,7 +211,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
           minHeight: "300px",
         }}
       />
-
       {/* Tags Section */}
       <div className="mt-4">
         <label
@@ -269,7 +264,11 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
       </div>
 
       {/* Media Attachments (Placeholder) */}
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div
+        className={`border-t mt-4 pt-4 ${
+          theme === "dark" ? "border-gray-700" : "border-gray-200"
+        }`}
+      >
         <div className="flex gap-2">
           <button
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
@@ -540,7 +539,11 @@ const JournalPage = () => {
                       </button>
                       <button
                         onClick={() => handleDeleteEntry(entry.id)}
-                        className="px-3 py-1 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        className={`px-3 py-1 text-red-500 hover:text-red-600 rounded-lg transition-colors ${
+                          theme === "dark"
+                            ? "hover:bg-red-900/20"
+                            : "hover:bg-red-50"
+                        }`}
                       >
                         Delete
                       </button>

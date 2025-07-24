@@ -336,22 +336,31 @@ const CalendarPage = () => {
                               {entries.slice(0, 2).map((entry) => (
                                 <div
                                   key={entry.id}
-                                  className={`
-                                    text-xs p-1 rounded truncate
-                                    ${
-                                      entry.type === "journal"
-                                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                        : entry.completed
-                                        ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 line-through"
-                                        : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                                    }
-                                  `}
+                                  className={` text-xs p-1 rounded truncate ${
+                                    entry.type === "journal"
+                                      ? theme === "dark"
+                                        ? "bg-green-900 text-green-200"
+                                        : "bg-green-100 text-green-800"
+                                      : entry.completed
+                                      ? theme === "dark"
+                                        ? "bg-gray-700 text-gray-400 line-through"
+                                        : "bg-gray-100 text-gray-600 line-through"
+                                      : theme === "dark"
+                                      ? "bg-blue-900 text-blue-200"
+                                      : "bg-blue-100 text-blue-800"
+                                  }`}
                                 >
                                   {entry.title}
                                 </div>
                               ))}
                               {entries.length > 2 && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                <div
+                                  className={`text-xs ${
+                                    theme === "dark"
+                                      ? "text-gray-400"
+                                      : "text-gray-500"
+                                  }`}
+                                >
                                   +{entries.length - 2} more
                                 </div>
                               )}
@@ -425,22 +434,32 @@ const CalendarPage = () => {
                             {entry.title}
                           </h4>
                           {entry.content && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            <p
+                              className={`text-sm mt-1 ${
+                                theme === "dark"
+                                  ? "text-gray-400"
+                                  : "text-gray-600"
+                              }`}
+                            >
                               {entry.content.substring(0, 60)}...
                             </p>
                           )}
+
                           {entry.priority && (
                             <span
-                              className={`
-                              inline-block text-xs px-2 py-1 rounded mt-2
-                              ${
+                              className={`inline-block text-xs px-2 py-1 rounded mt-2 ${
                                 entry.priority === "high"
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                  ? theme === "dark"
+                                    ? "bg-red-900 text-red-200"
+                                    : "bg-red-100 text-red-800"
                                   : entry.priority === "medium"
-                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                  : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              }
-                            `}
+                                  ? theme === "dark"
+                                    ? "bg-yellow-900 text-yellow-200"
+                                    : "bg-yellow-100 text-yellow-800"
+                                  : theme === "dark"
+                                  ? "bg-green-900 text-green-200"
+                                  : "bg-green-100 text-green-800"
+                              }`}
                             >
                               {entry.priority} priority
                             </span>
@@ -450,7 +469,11 @@ const CalendarPage = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <div
+                    className={`text-center py-8 ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>No activities for this date</p>
                     <p className="text-sm">
@@ -466,19 +489,37 @@ const CalendarPage = () => {
               <h3 className="text-lg font-semibold mb-4">This Month</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span
+                    className={`text-sm ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
                     Journal Entries
                   </span>
+
                   <span className="font-semibold text-green-600">12</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  className=
+                  {`text-sm  ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-500"
+                  }`}
+                  <span
+                    className={`text-sm  ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Tasks Completed
                   </span>
                   <span className="font-semibold text-blue-600">8</span>
                 </div>
+
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span
+                    className={`text-sm  ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
                     Tasks Pending
                   </span>
                   <span className="font-semibold text-orange-600">3</span>
