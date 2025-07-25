@@ -52,12 +52,15 @@ export const AppProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // 1. Clear state
     setToken(null);
-    localStorage.removeItem("token");
-    delete axios.defaults.headers.common["Authorization"];
     setTasks([]);
     setJournalEntries([]);
     setCalendarEvents([]);
+
+    // 2. Clear storage and headers
+    localStorage.removeItem("token");
+    delete axios.defaults.headers.common["Authorization"];
   };
 
   const contextValue = useMemo(

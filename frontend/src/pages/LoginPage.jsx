@@ -31,6 +31,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     await login(formData.email, formData.password);
     navigate("/");
     // Handle login/signup logic here

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { Sun, Moon, Bell, User, Settings, LogOut, Home } from "lucide-react";
 import { AppContext } from "../context/AppContext";
+import { useNavigate } from "react-router-dom";
 
 const Header = () => {
-  const { theme, toggleTheme } = useContext(AppContext);
+  const { theme, toggleTheme, logout } = useContext(AppContext);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const navigate = useNavigate();
 
   const notificationsRef = useRef(null);
   const profileRef = useRef(null);
@@ -27,6 +29,12 @@ const Header = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // logout
+  const handleLogout = () => {
+    logout();
+    navigate("/"); // or wherever your login page is
+  };
 
   // Mock notifications data
   const notifications = [
@@ -250,7 +258,7 @@ const Header = () => {
                       Settings
                     </a>
                     <button
-                      onClick={() => alert("Logout clicked")}
+                      onClick={handleLogout}
                       className={`w-full flex items-center px-4 py-2 text-sm transition-colors ${
                         theme === "dark"
                           ? "hover:bg-gray-700 text-red-400"
