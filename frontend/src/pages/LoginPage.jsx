@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import {
   Eye,
   EyeOff,
@@ -7,8 +7,12 @@ import {
   TrendingUp,
   BookOpen,
 } from "lucide-react";
+import { AppContext } from "../context/AppContext";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
+  const { theme, login } = useContext(AppContext);
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -25,9 +29,10 @@ export default function LoginPage() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    await login(formData.email, formData.password);
+    navigate("/");
     // Handle login/signup logic here
   };
 
