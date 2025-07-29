@@ -1,97 +1,12 @@
-// src/components/TasksPage.js
 import React, { useState, useEffect, useContext } from "react";
-import {
-  Search,
-  Plus,
-  Filter,
-  Edit3,
-  Trash2,
-  CheckCircle,
-  Circle,
-  Calendar,
-  Clock,
-  User,
-} from "lucide-react";
-import { AppContext } from "../context/AppContext"; // Import AppContext
-import TaskForm from "../components/TaskForm"; // Assuming TaskForm is a separate component
-import TaskList2 from "../components/TaskList2"; // Assuming TaskList2 is a separate component
+import { Search, Plus, Filter } from "lucide-react";
+import { AppContext } from "../context/AppContext";
+import TaskForm from "../components/TaskForm";
+import TaskList2 from "../components/TaskList2";
 
-// Static tasks data (unchanged)
-const staticTasks = [
-  {
-    id: 1,
-    title: "Design new landing page",
-    description:
-      "Create wireframes and mockups for the company website redesign",
-    status: "in-progress",
-    priority: "high",
-    category: "Design",
-    assignee: "Sarah Johnson",
-    dueDate: "2025-07-25",
-    createdAt: "2025-07-20",
-  },
-  {
-    id: 2,
-    title: "Fix authentication bug",
-    description: "Resolve login issues reported by multiple users",
-    status: "todo",
-    priority: "urgent",
-    category: "Development",
-    assignee: "Mike Chen",
-    dueDate: "2025-07-22",
-    createdAt: "2025-07-19",
-  },
-  {
-    id: 3,
-    title: "Update documentation",
-    description: "Review and update API documentation for v2.0 release",
-    status: "completed",
-    priority: "medium",
-    category: "Documentation",
-    assignee: "Emily Davis",
-    dueDate: "2025-07-21",
-    createdAt: "2025-07-18",
-  },
-  {
-    id: 4,
-    title: "Conduct user interviews",
-    description: "Interview 10 users about the new feature requirements",
-    status: "todo",
-    priority: "medium",
-    category: "Research",
-    assignee: "Alex Rodriguez",
-    dueDate: "2025-07-28",
-    createdAt: "2025-07-20",
-  },
-  {
-    id: 5,
-    title: "Setup CI/CD pipeline",
-    description: "Configure automated testing and deployment pipeline",
-    status: "in-progress",
-    priority: "high",
-    category: "DevOps",
-    assignee: "Jordan Kim",
-    dueDate: "2025-07-30",
-    createdAt: "2025-07-19",
-  },
-  {
-    id: 6,
-    title: "Create marketing campaign",
-    description: "Develop social media campaign for product launch",
-    status: "todo",
-    priority: "low",
-    category: "Marketing",
-    assignee: "Taylor Brown",
-    dueDate: "2025-08-05",
-    createdAt: "2025-07-21",
-  },
-];
-
-// Main TasksPage Component
 const TasksPage = () => {
-  const { theme } = useContext(AppContext); // Use context to get theme and toggleTheme
-  const [tasks, setTasks] = useState(staticTasks);
-  const [filteredTasks, setFilteredTasks] = useState(staticTasks);
+  const { theme, tasks, setTasks } = useContext(AppContext);
+  const [filteredTasks, setFilteredTasks] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -100,13 +15,17 @@ const TasksPage = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Apply filters (unchanged)
+  // Log state changes for debugging
+  useEffect(() => {}, [isTaskFormOpen, editingTask, tasks]);
+
+  // Apply filters
   useEffect(() => {
-    let filtered = tasks.filter((task) => {
+    const filtered = tasks.filter((task) => {
       const matchesSearch =
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.assignee.toLowerCase().includes(searchTerm.toLowerCase());
+        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        "" ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        "";
 
       const matchesStatus =
         statusFilter === "all" || task.status === statusFilter;
@@ -124,6 +43,7 @@ const TasksPage = () => {
   }, [tasks, searchTerm, statusFilter, priorityFilter, categoryFilter]);
 
   const handleCreateTask = () => {
+    console.log("handleCreateTask: Opening form");
     setEditingTask(null);
     setIsTaskFormOpen(true);
   };
@@ -137,11 +57,13 @@ const TasksPage = () => {
     if (editingTask) {
       setTasks((prev) =>
         prev.map((task) =>
-          task.id === editingTask.id
+          task._id === editingTask._id
             ? {
                 ...taskData,
-                id: editingTask.id,
-                createdAt: editingTask.createdAt,
+                _id: editingTask._id,
+                createdAt:
+                  editingTask.createdAt ||
+                  new Date().toISOString().split("T")[0],
               }
             : task
         )
@@ -149,24 +71,25 @@ const TasksPage = () => {
     } else {
       const newTask = {
         ...taskData,
-        id: Math.max(...tasks.map((t) => t.id)) + 1,
+        _id: tasks.length > 0 ? Math.max(...tasks.map((t) => t._id)) + 1 : 1,
         createdAt: new Date().toISOString().split("T")[0],
       };
       setTasks((prev) => [...prev, newTask]);
     }
+    setIsTaskFormOpen(false);
   };
 
   const handleDeleteTask = (taskId) => {
     if (window.confirm("Are you sure you want to delete this task?")) {
-      setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      setTasks((prev) => prev.filter((task) => task._id !== taskId));
     }
   };
 
   const handleToggleStatus = (taskId) => {
     setTasks((prev) =>
       prev.map((task) => {
-        if (task.id === taskId) {
-          const statusOrder = ["todo", "in-progress", "completed"];
+        if (task._id === taskId) {
+          const statusOrder = ["To Do", "In Progress", "Completed"];
           const currentIndex = statusOrder.indexOf(task.status);
           const nextStatus =
             statusOrder[(currentIndex + 1) % statusOrder.length];
@@ -195,7 +118,6 @@ const TasksPage = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto mt-16 px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1
@@ -207,7 +129,7 @@ const TasksPage = () => {
             </h1>
             <p
               className={`mt-1 ${
-                theme === "dark" ? "text-gray-400" : "text-gray600"
+                theme === "dark" ? "text-gray-400" : "text-gray-600"
               }`}
             >
               Manage and track all your tasks
@@ -225,7 +147,6 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* Search and Filters */}
         <div
           className={`${
             theme === "dark"
@@ -268,7 +189,7 @@ const TasksPage = () => {
 
           {showFilters && (
             <div
-              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4     border-t ${
+              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t ${
                 theme === "dark" ? "border-gray-700" : "border-gray-200"
               }`}
             >
@@ -290,9 +211,9 @@ const TasksPage = () => {
                   }`}
                 >
                   <option value="all">All Status</option>
-                  <option value="todo">To Do</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="completed">Completed</option>
+                  <option value="To Do">To Do</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
                 </select>
               </div>
 
@@ -363,7 +284,6 @@ const TasksPage = () => {
           )}
         </div>
 
-        {/* Tasks Count */}
         <div className="flex items-center justify-between mb-6">
           <div
             className={`text-sm ${
@@ -374,7 +294,6 @@ const TasksPage = () => {
           </div>
         </div>
 
-        {/* Task List */}
         <TaskList2
           tasks={filteredTasks}
           onEditTask={handleEditTask}
@@ -383,7 +302,6 @@ const TasksPage = () => {
           theme={theme}
         />
 
-        {/* Task Form Modal */}
         <TaskForm
           isOpen={isTaskFormOpen}
           onClose={() => setIsTaskFormOpen(false)}

@@ -1,28 +1,37 @@
-// src/components/TaskForm.js
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    status: "todo",
+    status: "To Do",
     priority: "medium",
     category: "",
-    assignee: "",
     dueDate: "",
   });
 
   useEffect(() => {
+    const formatDateForInput = (isoDate) => {
+      if (!isoDate) return "";
+      return isoDate.slice(0, 10);
+    };
     if (task) {
-      setFormData(task);
+      setFormData({
+        title: task.title || "",
+        description: task.description || "",
+        status: task.status || "To Do",
+        priority: task.priority || "medium",
+        category: task.category || "",
+        dueDate: formatDateForInput(task.dueDate),
+      });
     } else {
       setFormData({
         title: "",
         description: "",
-        status: "todo",
+        status: "To Do",
         priority: "medium",
         category: "",
-        assignee: "",
         dueDate: "",
       });
     }
@@ -34,14 +43,19 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-4"
+      key="task-form-modal"
+    >
       <div
         className={`${
-          theme === "dark" ? "bg-gray-800" : "bg-white"
-        } rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto`}
+          theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+        } rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border-2 border-blue-500`}
       >
         <div className="p-6">
           <h2
@@ -123,9 +137,9 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                       : "border-gray-300 bg-white text-gray-900"
                   }`}
                 >
-                  <option value="todo">To Do</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="completed">Completed</option>
+                  <option value="To Do">To Do</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
                 </select>
               </div>
 
@@ -181,30 +195,6 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                 placeholder="e.g., Development, Design, Marketing"
               />
             </div>
-
-            <div>
-              <label
-                className={`block text-sm font-medium mb-1 ${
-                  theme === "dark" ? "text-gray-300" : "text-gray-700"
-                }`}
-              >
-                Assignee
-              </label>
-              <input
-                type="text"
-                value={formData.assignee}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, assignee: e.target.value }))
-                }
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  theme === "dark"
-                    ? "border-gray-600 bg-gray-700 text-white"
-                    : "border-gray-300 bg-white text-gray-900"
-                }`}
-                placeholder="Enter assignee name"
-              />
-            </div>
-
             <div>
               <label
                 className={`block text-sm font-medium mb-1 ${
@@ -249,7 +239,8 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

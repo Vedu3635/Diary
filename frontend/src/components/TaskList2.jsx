@@ -1,4 +1,3 @@
-// src/components/TaskList.js
 import React from "react";
 import {
   Edit3,
@@ -41,23 +40,24 @@ const TaskList2 = ({
 
   const getStatusColor = (status) => {
     const colors = {
-      todo:
+      "To Do":
         theme === "dark"
           ? "bg-gray-700 text-gray-300"
           : "bg-gray-100 text-gray-700",
-      "in-progress":
+      "In Progress":
         theme === "dark"
           ? "bg-blue-900/20 text-blue-400"
           : "bg-blue-100 text-blue-800",
-      completed:
+      Completed:
         theme === "dark"
           ? "bg-green-900/20 text-green-400"
           : "bg-green-100 text-green-800",
     };
-    return colors[status] || colors.todo;
+    return colors[status] || colors["To Do"];
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -83,7 +83,7 @@ const TaskList2 = ({
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {tasks.map((task) => (
         <div
-          key={task.id}
+          key={task._id}
           className={`${
             theme === "dark"
               ? "bg-gray-800 border-gray-700"
@@ -93,14 +93,14 @@ const TaskList2 = ({
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => onToggleStatus(task.id)}
+                onClick={() => onToggleStatus(task._id)}
                 className={`${
                   theme === "dark"
                     ? "text-gray-400 hover:text-blue-400"
                     : "text-gray-500 hover:text-blue-600"
                 } transition-colors`}
               >
-                {task.status === "completed" ? (
+                {task.status === "Completed" ? (
                   <CheckCircle className="w-5 h-5 text-green-500" />
                 ) : (
                   <Circle className="w-5 h-5" />
@@ -108,7 +108,7 @@ const TaskList2 = ({
               </button>
               <h3
                 className={`font-semibold ${
-                  task.status === "completed" ? "line-through" : ""
+                  task.status === "Completed" ? "line-through" : ""
                 } ${theme === "dark" ? "text-white" : "text-gray-900"}`}
               >
                 {task.title}
@@ -116,7 +116,9 @@ const TaskList2 = ({
             </div>
             <div className="flex gap-1">
               <button
-                onClick={() => onEditTask(task)}
+                onClick={() => {
+                  onEditTask(task);
+                }}
                 className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
                   theme === "dark"
                     ? "text-gray-400 hover:bg-gray-600"
@@ -126,7 +128,7 @@ const TaskList2 = ({
                 <Edit3 className="w-4 h-4" />
               </button>
               <button
-                onClick={() => onDeleteTask(task.id)}
+                onClick={() => onDeleteTask(task._id)}
                 className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
                   theme === "dark"
                     ? "text-gray-400 hover:bg-red-900 hover:text-red-400"
@@ -154,9 +156,7 @@ const TaskList2 = ({
                 task.status
               )}`}
             >
-              {task.status
-                .replace("-", " ")
-                .replace(/\b\w/g, (l) => l.toUpperCase())}
+              {task.status}
             </span>
             <span
               className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
@@ -183,12 +183,6 @@ const TaskList2 = ({
               theme === "dark" ? "text-gray-400" : "text-gray-500"
             }`}
           >
-            {task.assignee && (
-              <div className="flex items-center gap-1">
-                <User className="w-3 h-3" />
-                <span>{task.assignee}</span>
-              </div>
-            )}
             {task.dueDate && (
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
