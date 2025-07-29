@@ -3,9 +3,11 @@ import { Search, Plus, Filter } from "lucide-react";
 import { AppContext } from "../context/AppContext";
 import TaskForm from "../components/TaskForm";
 import TaskList2 from "../components/TaskList2";
+import { toast } from "react-toastify";
 
 const TasksPage = () => {
-  const { theme, tasks, setTasks } = useContext(AppContext);
+  const { theme, tasks, createTask, updateTask, deleteTask, error, token } =
+    useContext(AppContext);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -15,89 +17,109 @@ const TasksPage = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Log state changes for debugging
-  useEffect(() => {}, [isTaskFormOpen, editingTask, tasks]);
+  useEffect(() => {
+    console.log("TasksPage state:", { isTaskFormOpen, editingTask, tasks });
+    setFilteredTasks(tasks);
+  }, [tasks]);
 
-  // Apply filters
+  useEffect(() => {
+    if (error) {
+      toast.error(error, { theme });
+    }
+  }, [error, theme]);
+
   useEffect(() => {
     const filtered = tasks.filter((task) => {
       const matchesSearch =
         task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         "" ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        "" ||
+        task.assignee?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         "";
-
       const matchesStatus =
         statusFilter === "all" || task.status === statusFilter;
       const matchesPriority =
         priorityFilter === "all" || task.priority === priorityFilter;
       const matchesCategory =
         categoryFilter === "all" || task.category === categoryFilter;
-
       return (
         matchesSearch && matchesStatus && matchesPriority && matchesCategory
       );
     });
-
+    console.log("Filtered tasks:", filtered);
     setFilteredTasks(filtered);
   }, [tasks, searchTerm, statusFilter, priorityFilter, categoryFilter]);
 
   const handleCreateTask = () => {
+    if (!token) {
+      toast.error("Please log in to create tasks.", { theme });
+      window.location.href = "/login";
+      return;
+    }
     console.log("handleCreateTask: Opening form");
     setEditingTask(null);
     setIsTaskFormOpen(true);
   };
 
   const handleEditTask = (task) => {
+    if (!token) {
+      toast.error("Please log in to edit tasks.", { theme });
+      window.location.href = "/login";
+      return;
+    }
+    console.log("handleEditTask:", task);
     setEditingTask(task);
     setIsTaskFormOpen(true);
   };
 
-  const handleSaveTask = (taskData) => {
-    if (editingTask) {
-      setTasks((prev) =>
-        prev.map((task) =>
-          task._id === editingTask._id
-            ? {
-                ...taskData,
-                _id: editingTask._id,
-                createdAt:
-                  editingTask.createdAt ||
-                  new Date().toISOString().split("T")[0],
-              }
-            : task
-        )
-      );
-    } else {
-      const newTask = {
-        ...taskData,
-        _id: tasks.length > 0 ? Math.max(...tasks.map((t) => t._id)) + 1 : 1,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      setTasks((prev) => [...prev, newTask]);
+  const handleSaveTask = async (taskData) => {
+    if (!token) {
+      toast.error("Please log in to save tasks.", { theme });
+      window.location.href = "/login";
+      return;
     }
-    setIsTaskFormOpen(false);
+    try {
+      if (editingTask) {
+        await updateTask(editingTask._id, taskData);
+        toast.success("Task updated successfully!", { theme });
+      } else {
+        await createTask(taskData);
+        toast.success("Task created successfully!", { theme });
+      }
+      setIsTaskFormOpen(false);
+    } catch (err) {
+      console.error("Error saving task:", err);
+      toast.error("Failed to save task.", { theme });
+    }
   };
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = async (taskId) => {
+    if (!token) {
+      toast.error("Please log in to delete tasks.", { theme });
+      window.location.href = "/login";
+      return;
+    }
     if (window.confirm("Are you sure you want to delete this task?")) {
-      setTasks((prev) => prev.filter((task) => task._id !== taskId));
+      const success = await deleteTask(taskId);
+      if (success) {
+        toast.success("Task deleted successfully!", { theme });
+      }
     }
   };
 
-  const handleToggleStatus = (taskId) => {
-    setTasks((prev) =>
-      prev.map((task) => {
-        if (task._id === taskId) {
-          const statusOrder = ["To Do", "In Progress", "Completed"];
-          const currentIndex = statusOrder.indexOf(task.status);
-          const nextStatus =
-            statusOrder[(currentIndex + 1) % statusOrder.length];
-          return { ...task, status: nextStatus };
-        }
-        return task;
-      })
-    );
+  const handleToggleStatus = async (taskId) => {
+    if (!token) {
+      toast.error("Please log in to update task status.", { theme });
+      window.location.href = "/login";
+      return;
+    }
+    const task = tasks.find((t) => t._id === taskId);
+    const statusOrder = ["To Do", "In Progress", "Completed"];
+    const currentIndex = statusOrder.indexOf(task.status);
+    const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+    await updateTask(taskId, { ...task, status: nextStatus });
+    toast.success(`Task status updated to ${nextStatus}!`, { theme });
   };
 
   const clearFilters = () => {
@@ -135,7 +157,6 @@ const TasksPage = () => {
               Manage and track all your tasks
             </p>
           </div>
-
           <div className="flex items-center gap-3">
             <button
               onClick={handleCreateTask}
@@ -146,7 +167,6 @@ const TasksPage = () => {
             </button>
           </div>
         </div>
-
         <div
           className={`${
             theme === "dark"
@@ -173,7 +193,6 @@ const TasksPage = () => {
                 }`}
               />
             </div>
-
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
@@ -186,7 +205,6 @@ const TasksPage = () => {
               Filters
             </button>
           </div>
-
           {showFilters && (
             <div
               className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t ${
@@ -216,7 +234,6 @@ const TasksPage = () => {
                   <option value="Completed">Completed</option>
                 </select>
               </div>
-
               <div>
                 <label
                   className={`block text-sm font-medium mb-1 ${
@@ -241,7 +258,6 @@ const TasksPage = () => {
                   <option value="urgent">Urgent</option>
                 </select>
               </div>
-
               <div>
                 <label
                   className={`block text-sm font-medium mb-1 ${
@@ -267,7 +283,6 @@ const TasksPage = () => {
                   ))}
                 </select>
               </div>
-
               <div className="flex items-end">
                 <button
                   onClick={clearFilters}
@@ -283,7 +298,6 @@ const TasksPage = () => {
             </div>
           )}
         </div>
-
         <div className="flex items-center justify-between mb-6">
           <div
             className={`text-sm ${
@@ -293,7 +307,6 @@ const TasksPage = () => {
             Showing {filteredTasks.length} of {tasks.length} tasks
           </div>
         </div>
-
         <TaskList2
           tasks={filteredTasks}
           onEditTask={handleEditTask}
@@ -301,7 +314,6 @@ const TasksPage = () => {
           onToggleStatus={handleToggleStatus}
           theme={theme}
         />
-
         <TaskForm
           isOpen={isTaskFormOpen}
           onClose={() => setIsTaskFormOpen(false)}

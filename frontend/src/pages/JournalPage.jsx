@@ -552,7 +552,7 @@ const JournalPage = () => {
 
                   <div
                     className={`prose max-w-none mb-4 ${
-                      theme === "dark" ? "prose-invert" : ""
+                      theme === "dark" ? "text-white" : "text-gray-600"
                     }`}
                     dangerouslySetInnerHTML={{
                       __html:
