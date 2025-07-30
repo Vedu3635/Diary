@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef } from "react";
+import React, { useState, useContext, useRef, useEffect } from "react";
 import { AppContext } from "../context/AppContext";
 import {
   Calendar,
@@ -32,6 +32,46 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
   const [newTag, setNewTag] = useState("");
   const editorRef = useRef(null);
 
+  // Utility to save and restore cursor position
+  const saveSelection = () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      return selection.getRangeAt(0);
+    }
+    return null;
+  };
+
+  const restoreSelection = (range) => {
+    if (range) {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  };
+
+  // Handle text formatting
+  const formatText = (command, value = null) => {
+    const selection = saveSelection();
+    document.execCommand(command, false, value);
+    restoreSelection(selection);
+    setContent(editorRef.current.innerHTML);
+    editorRef.current.focus();
+  };
+
+  // Handle content input
+  const handleContentChange = () => {
+    setContent(editorRef.current.innerHTML);
+  };
+
+  // Initialize contentEditable with content
+  useEffect(() => {
+    if (editorRef.current && content !== editorRef.current.innerHTML) {
+      const selection = saveSelection();
+      editorRef.current.innerHTML = content;
+      restoreSelection(selection);
+    }
+  }, [content]);
+
   const moods = [
     {
       value: "happy",
@@ -58,11 +98,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
       bg: theme === "dark" ? "bg-red-900/30" : "bg-red-100",
     },
   ];
-
-  const formatText = (command) => {
-    document.execCommand(command, false, null);
-    editorRef.current.focus();
-  };
 
   const addTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {
@@ -199,8 +234,7 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
       <div
         ref={editorRef}
         contentEditable
-        onInput={(e) => setContent(e.target.innerHTML)}
-        dangerouslySetInnerHTML={{ __html: content }}
+        onInput={handleContentChange}
         className={`w-full min-h-[300px] p-4 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
           theme === "dark"
             ? "bg-gray-700/50 border-gray-600 text-white focus:border-blue-400"
