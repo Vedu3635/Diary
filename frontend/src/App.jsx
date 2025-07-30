@@ -1,6 +1,7 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useContext } from "react";
+import { ToastContainer } from "react-toastify";
 import NavBar from "./components/NavBar";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -57,6 +58,7 @@ function AppContent() {
 function App() {
   return (
     <AppProvider>
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
       <AppContent />
     </AppProvider>
   );
