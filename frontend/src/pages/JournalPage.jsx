@@ -20,8 +20,25 @@ import {
   List,
   ListOrdered,
   Quote,
-  Link,
 } from "lucide-react";
+import { toast } from "react-toastify";
+
+// Utility to save and restore cursor position
+const saveSelection = () => {
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    return selection.getRangeAt(0);
+  }
+  return null;
+};
+
+const restoreSelection = (range) => {
+  if (range) {
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+};
 
 // Journal Entry Component
 const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
@@ -31,46 +48,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
   const [tags, setTags] = useState(entry?.tags || []);
   const [newTag, setNewTag] = useState("");
   const editorRef = useRef(null);
-
-  // Utility to save and restore cursor position
-  const saveSelection = () => {
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      return selection.getRangeAt(0);
-    }
-    return null;
-  };
-
-  const restoreSelection = (range) => {
-    if (range) {
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  };
-
-  // Handle text formatting
-  const formatText = (command, value = null) => {
-    const selection = saveSelection();
-    document.execCommand(command, false, value);
-    restoreSelection(selection);
-    setContent(editorRef.current.innerHTML);
-    editorRef.current.focus();
-  };
-
-  // Handle content input
-  const handleContentChange = () => {
-    setContent(editorRef.current.innerHTML);
-  };
-
-  // Initialize contentEditable with content
-  useEffect(() => {
-    if (editorRef.current && content !== editorRef.current.innerHTML) {
-      const selection = saveSelection();
-      editorRef.current.innerHTML = content;
-      restoreSelection(selection);
-    }
-  }, [content]);
 
   const moods = [
     {
@@ -99,6 +76,29 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
     },
   ];
 
+  // Handle text formatting
+  const formatText = (command, value = null) => {
+    const selection = saveSelection();
+    document.execCommand(command, false, value);
+    restoreSelection(selection);
+    setContent(editorRef.current.innerHTML);
+    editorRef.current.focus();
+  };
+
+  // Handle content input
+  const handleContentChange = () => {
+    setContent(editorRef.current.innerHTML);
+  };
+
+  // Initialize contentEditable with content
+  useEffect(() => {
+    if (editorRef.current && content !== editorRef.current.innerHTML) {
+      const selection = saveSelection();
+      editorRef.current.innerHTML = content;
+      restoreSelection(selection);
+    }
+  }, [content]);
+
   const addTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {
       setTags([...tags, newTag.trim()]);
@@ -112,7 +112,7 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
 
   const handleSave = () => {
     const entryData = {
-      id: entry?.id || Date.now(),
+      id: entry?._id || Date.now(), // Use _id for backend compatibility
       title: title || "Untitled Entry",
       content,
       mood,
@@ -219,7 +219,7 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
         ].map(({ command, icon: Icon, value }) => (
           <button
             key={command}
-            onClick={() => formatText(command, false, value)}
+            onClick={() => formatText(command, value)}
             className={`p-2 rounded transition-colors ${
               theme === "dark"
                 ? "text-gray-300 hover:text-white hover:bg-gray-600"
@@ -296,7 +296,6 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
           </button>
         </div>
       </div>
-
       {/* Media Attachments (Placeholder) */}
       <div
         className={`border-t mt-4 pt-4 ${
@@ -332,35 +331,31 @@ const JournalEntry = ({ entry, onSave, onCancel, isNew = false, theme }) => {
 
 // Main Journal Page Component
 const JournalPage = () => {
-  const { theme } = useContext(AppContext);
-  const [entries, setEntries] = useState([
-    {
-      id: 1,
-      title: "My First Journal Entry",
-      content:
-        "Today was a great day! I started working on my new journal app and I'm really excited about the progress.",
-      mood: "happy",
-      tags: ["coding", "productivity"],
-      createdAt: new Date(2024, 6, 20).toISOString(),
-      updatedAt: new Date(2024, 6, 20).toISOString(),
-    },
-  ]);
+  const {
+    theme,
+    journalEntries,
+    createJournalEntry,
+    updateJournalEntry,
+    deleteJournalEntry,
+  } = useContext(AppContext);
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMoodFilter, setSelectedMoodFilter] = useState("all");
 
-  const handleSaveEntry = (entryData) => {
-    if (editingEntry) {
-      setEntries(
-        entries.map((entry) =>
-          entry.id === editingEntry.id ? entryData : entry
-        )
-      );
-      setEditingEntry(null);
-    } else {
-      setEntries([entryData, ...entries]);
-      setShowNewEntry(false);
+  const handleSaveEntry = async (entryData) => {
+    try {
+      if (editingEntry) {
+        await updateJournalEntry(editingEntry._id, entryData);
+        toast.success("Journal entry updated successfully!");
+        setEditingEntry(null);
+      } else {
+        await createJournalEntry(entryData);
+        toast.success("Journal entry created successfully!");
+        setShowNewEntry(false);
+      }
+    } catch (err) {
+      toast.error("Failed to save journal entry.");
     }
   };
 
@@ -369,11 +364,20 @@ const JournalPage = () => {
     setShowNewEntry(false);
   };
 
-  const handleDeleteEntry = (entryId) => {
-    setEntries(entries.filter((entry) => entry.id !== entryId));
+  const handleDeleteEntry = async (entryId) => {
+    try {
+      const success = await deleteJournalEntry(entryId);
+      if (success) {
+        toast.success("Journal entry deleted successfully!");
+      } else {
+        toast.error("Failed to delete journal entry.");
+      }
+    } catch (err) {
+      toast.error("Failed to delete journal entry.");
+    }
   };
 
-  const filteredEntries = entries.filter((entry) => {
+  const filteredEntries = journalEntries.filter((entry) => {
     const matchesSearch =
       entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -534,7 +538,7 @@ const JournalPage = () => {
               const { icon: MoodIcon, color } = getMoodIcon(entry.mood);
               return (
                 <div
-                  key={entry.id}
+                  key={entry._id}
                   className={`p-6 rounded-xl border transition-all duration-200 hover:shadow-lg ${
                     theme === "dark"
                       ? "bg-gray-800/50 border-gray-700 backdrop-blur-sm hover:bg-gray-800/70"
@@ -572,7 +576,7 @@ const JournalPage = () => {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteEntry(entry.id)}
+                        onClick={() => handleDeleteEntry(entry._id)}
                         className={`px-3 py-1 text-red-500 hover:text-red-600 rounded-lg transition-colors ${
                           theme === "dark"
                             ? "hover:bg-red-900/20"

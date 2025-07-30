@@ -18,7 +18,7 @@ const TasksPage = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    console.log("TasksPage state:", { isTaskFormOpen, editingTask, tasks });
+    // console.log("TasksPage state:", { isTaskFormOpen, editingTask, tasks });
     setFilteredTasks(tasks);
   }, [tasks]);
 
@@ -47,7 +47,7 @@ const TasksPage = () => {
         matchesSearch && matchesStatus && matchesPriority && matchesCategory
       );
     });
-    console.log("Filtered tasks:", filtered);
+    // console.log("Filtered tasks:", filtered);
     setFilteredTasks(filtered);
   }, [tasks, searchTerm, statusFilter, priorityFilter, categoryFilter]);
 

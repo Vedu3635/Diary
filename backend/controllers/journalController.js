@@ -1,4 +1,3 @@
-// backend/controllers/journalController.js
 const JournalEntry = require("../models/JournalEntry");
 
 exports.getJournalEntries = async (req, res) => {
@@ -6,18 +5,24 @@ exports.getJournalEntries = async (req, res) => {
     const entries = await JournalEntry.find({ userId: req.user });
     res.json(entries);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error in getJournalEntries:", error.message);
+    console.error(error.stack);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 exports.createJournalEntry = async (req, res) => {
-  const { title, content, date } = req.body;
+  const { title, content, mood = "neutral", tags = [] } = req.body;
   try {
     const entry = new JournalEntry({
       userId: req.user,
-      title,
+      title: title || "Untitled Entry",
       content,
       date,
+      tags,
+      date: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     await entry.save();
     res.status(201).json(entry);
@@ -27,11 +32,11 @@ exports.createJournalEntry = async (req, res) => {
 };
 
 exports.updateJournalEntry = async (req, res) => {
-  const { title, content, date } = req.body;
+  const { title, content, mood, tags, date } = req.body;
   try {
     const entry = await JournalEntry.findOneAndUpdate(
       { _id: req.params.id, userId: req.user },
-      { title, content, date },
+      { title, content, mood, tags, date, updatedAt: new Date() },
       { new: true }
     );
     if (!entry) {
