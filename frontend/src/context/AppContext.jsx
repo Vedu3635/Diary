@@ -177,7 +177,7 @@ export const AppProvider = ({ children }) => {
         (entry) => entry._id === entryId
       );
       setJournalEntries((prev) =>
-        premap((entry) =>
+        prev.map((entry) =>
           entry._id === entryId ? { ...entry, ...entryData } : entry
         )
       );
@@ -380,14 +380,14 @@ export const AppProvider = ({ children }) => {
     [theme, tasks, journalEntries, calendarEvents, token, error]
   );
 
-  console.log("AppContext state:", {
-    theme,
-    tasks,
-    journalEntries,
-    calendarEvents,
-    token,
-    error,
-  });
+  // console.log("AppContext state:", {
+  //   theme,
+  //   tasks,
+  //   journalEntries,
+  //   calendarEvents,
+  //   token,
+  //   error,
+  // });
 
   return (
     <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>

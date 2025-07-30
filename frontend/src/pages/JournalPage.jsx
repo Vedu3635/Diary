@@ -347,15 +347,15 @@ const JournalPage = () => {
     try {
       if (editingEntry) {
         await updateJournalEntry(editingEntry._id, entryData);
-        toast.success("Journal entry updated successfully!");
+        toast.success("Journal entry updated successfully!", { theme });
         setEditingEntry(null);
       } else {
         await createJournalEntry(entryData);
-        toast.success("Journal entry created successfully!");
+        toast.success("Journal entry created successfully!", { theme });
         setShowNewEntry(false);
       }
     } catch (err) {
-      toast.error("Failed to save journal entry.");
+      toast.error("Failed to save journal entry.", { theme });
     }
   };
 
@@ -368,12 +368,12 @@ const JournalPage = () => {
     try {
       const success = await deleteJournalEntry(entryId);
       if (success) {
-        toast.success("Journal entry deleted successfully!");
+        toast.success("Journal entry deleted successfully!", { theme });
       } else {
-        toast.error("Failed to delete journal entry.");
+        toast.error("Failed to delete journal entry.", { theme });
       }
     } catch (err) {
-      toast.error("Failed to delete journal entry.");
+      toast.error("Failed to delete journal entry.", { theme });
     }
   };
 
