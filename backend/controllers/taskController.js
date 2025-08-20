@@ -2,11 +2,16 @@
 const Task = require("../models/Task");
 
 exports.getTasks = async (req, res) => {
+  // console.log(req);
   try {
-    const tasks = await Task.find({ userId: req.user });
+    // const { userId } = req.user;
+    // const tasks = await Task.find({ userId: req.user });
+    const tasks = await Task.find({ userId: req.user.userId });
+
     res.json(tasks);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Error fetching tasks:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 

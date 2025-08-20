@@ -2,7 +2,7 @@ const JournalEntry = require("../models/JournalEntry");
 
 exports.getJournalEntries = async (req, res) => {
   try {
-    const entries = await JournalEntry.find({ userId: req.user });
+    const entries = await JournalEntry.find({ userId: req.user.userId });
     res.json(entries);
   } catch (error) {
     console.error("❌ Error in getJournalEntries:", error.message);

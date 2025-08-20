@@ -1,5 +1,6 @@
-import React, { createContext, useState, useMemo, useEffect } from "react";
+import { createContext, useState, useMemo, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export const AppContext = createContext();
 
@@ -7,14 +8,19 @@ export const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const [tasks, setTasks] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
-  const [calendarEvents, setCalendarEvents] = useState([]);
   const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [userId, setUserId] = useState(localStorage.getItem("userId") || null);
   const [error, setError] = useState(null);
 
   const API_BASE_URL = "http://localhost:5000/api";
 
   useEffect(() => {
     localStorage.setItem("theme", theme);
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -22,6 +28,8 @@ export const AppProvider = ({ children }) => {
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       fetchData();
     } else {
+      setTasks([]);
+      setJournalEntries([]);
       setError("Please log in to access data.");
     }
   }, [token]);
@@ -29,14 +37,12 @@ export const AppProvider = ({ children }) => {
   const fetchData = async () => {
     try {
       setError(null);
-      const [tasksRes, journalRes, calendarRes] = await Promise.all([
+      const [tasksRes, journalRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/tasks`),
         axios.get(`${API_BASE_URL}/journal`),
-        axios.get(`${API_BASE_URL}/calendar`),
       ]);
       setTasks(tasksRes.data);
       setJournalEntries(journalRes.data);
-      setCalendarEvents(calendarRes.data);
     } catch (err) {
       console.error("Error fetching data:", err);
       if (err.response?.status === 401) {
@@ -44,6 +50,20 @@ export const AppProvider = ({ children }) => {
       } else {
         setError("Failed to fetch data. Please try again.");
       }
+    }
+  };
+
+  const fetchCalendarEvents = async (start, end) => {
+    if (!token || !userId) return [];
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/calendar/events?start=${start}&end=${end}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching calendar events:", error);
+      setError("Failed to fetch calendar events. Please try again.");
+      return [];
     }
   };
 
@@ -232,99 +252,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const createCalendarEvent = async (eventData) => {
-    if (!token) {
-      setError("Please log in to create calendar events.");
-      return null;
-    }
-    try {
-      setError(null);
-      const tempId = `temp-${Date.now()}`;
-      const tempEvent = { ...eventData, _id: tempId };
-      setCalendarEvents((prev) => [...prev, tempEvent]);
-      const response = await axios.post(`${API_BASE_URL}/calendar`, eventData);
-      setCalendarEvents((prev) =>
-        prev.map((event) => (event._id === tempId ? response.data : event))
-      );
-      return response.data;
-    } catch (err) {
-      console.error("Error creating calendar event:", err);
-      setCalendarEvents((prev) => prev.filter((event) => event._id !== tempId));
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      } else {
-        setError("Failed to create calendar event. Please try again.");
-      }
-      return null;
-    }
-  };
-
-  const updateCalendarEvent = async (eventId, eventData) => {
-    if (!token) {
-      setError("Please log in to update calendar events.");
-      return null;
-    }
-    try {
-      setError(null);
-      const originalEvent = calendarEvents.find(
-        (event) => event._id === eventId
-      );
-      setCalendarEvents((prev) =>
-        prev.map((event) =>
-          event._id === eventId ? { ...event, ...eventData } : event
-        )
-      );
-      const response = await axios.put(
-        `${API_BASE_URL}/calendar/${eventId}`,
-        eventData
-      );
-      setCalendarEvents((prev) =>
-        prev.map((event) => (event._id === eventId ? response.data : event))
-      );
-      return response.data;
-    } catch (err) {
-      console.error("Error updating calendar event:", err);
-      setCalendarEvents((prev) =>
-        prev.map((event) => (event._id === eventId ? originalEvent : event))
-      );
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      } else {
-        setError("Failed to update calendar event. Please try again.");
-      }
-      return null;
-    }
-  };
-
-  const deleteCalendarEvent = async (eventId) => {
-    if (!token) {
-      setError("Please log in to delete calendar events.");
-      return false;
-    }
-    try {
-      setError(null);
-      const originalEvent = calendarEvents.find(
-        (event) => event._id === eventId
-      );
-      setCalendarEvents((prev) =>
-        prev.filter((event) => event._id !== eventId)
-      );
-      await axios.delete(`${API_BASE_URL}/calendar/${eventId}`);
-      return true;
-    } catch (err) {
-      console.error("Error deleting calendar event:", err);
-      setCalendarEvents((prev) =>
-        [...prev, originalEvent].sort((a, b) => a._id.localeCompare(b._id))
-      );
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      } else {
-        setError("Failed to delete calendar event. Please try again.");
-      }
-      return false;
-    }
-  };
-
   const login = async (email, password) => {
     try {
       setError(null);
@@ -333,7 +260,9 @@ export const AppProvider = ({ children }) => {
         password,
       });
       setToken(res.data.token);
+      setUserId(res.data.userId); // Store userId from login response
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("userId", res.data.userId);
       return true;
     } catch (err) {
       console.error("Login error:", err);
@@ -344,11 +273,12 @@ export const AppProvider = ({ children }) => {
 
   const logout = () => {
     setToken(null);
+    setUserId(null);
     setTasks([]);
     setJournalEntries([]);
-    setCalendarEvents([]);
     setError(null);
     localStorage.removeItem("token");
+    localStorage.removeItem("userId");
     delete axios.defaults.headers.common["Authorization"];
   };
 
@@ -361,9 +291,8 @@ export const AppProvider = ({ children }) => {
       setTasks,
       journalEntries,
       setJournalEntries,
-      calendarEvents,
-      setCalendarEvents,
       token,
+      userId,
       login,
       logout,
       error,
@@ -373,11 +302,9 @@ export const AppProvider = ({ children }) => {
       createJournalEntry,
       updateJournalEntry,
       deleteJournalEntry,
-      createCalendarEvent,
-      updateCalendarEvent,
-      deleteCalendarEvent,
+      fetchCalendarEvents,
     }),
-    [theme, tasks, journalEntries, calendarEvents, token, error]
+    [theme, tasks, journalEntries, token, userId, error]
   );
 
   // console.log("AppContext state:", {

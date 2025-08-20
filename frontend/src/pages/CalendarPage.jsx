@@ -1,5 +1,4 @@
-import React, { useState, useContext } from "react";
-import { AppContext } from "../context/AppContext";
+import React, { useState, useContext, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,17 +14,10 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { AppContext } from "../context/AppContext";
 
 const CalendarPage = () => {
-  const {
-    theme,
-    calendarEvents,
-    createCalendarEvent,
-    updateCalendarEvent,
-    deleteCalendarEvent,
-    token,
-  } = useContext(AppContext);
-  console.log(calendarEvents);
+  const { theme, fetchCalendarEvents, token, userId } = useContext(AppContext);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("month");
@@ -35,6 +27,7 @@ const CalendarPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [events, setEvents] = useState([]);
 
   // Event form state
   const [eventTitle, setEventTitle] = useState("");
@@ -42,6 +35,7 @@ const CalendarPage = () => {
   const [eventType, setEventType] = useState("journal");
   const [eventPriority, setEventPriority] = useState("medium");
   const [eventCompleted, setEventCompleted] = useState(false);
+  const [eventRecurrence, setEventRecurrence] = useState(""); // For task recurrenceRule
 
   const months = [
     "January",
@@ -60,6 +54,25 @@ const CalendarPage = () => {
 
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  // Fetch events for the current month
+  useEffect(() => {
+    const fetchEvents = async () => {
+      const start = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      ).toISOString();
+      const end = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      ).toISOString();
+      const fetchedEvents = await fetchCalendarEvents(start, end);
+      setEvents(fetchedEvents);
+    };
+    fetchEvents();
+  }, [currentDate, fetchCalendarEvents, userId, token]);
+
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -74,7 +87,6 @@ const CalendarPage = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
-    // console.log(days);
     return days;
   };
 
@@ -84,6 +96,7 @@ const CalendarPage = () => {
     setCurrentDate(newDate);
   };
 
+  // console.log(events);
   const isToday = (date) => {
     const today = new Date();
     return date?.toDateString() === today.toDateString();
@@ -96,7 +109,7 @@ const CalendarPage = () => {
   const getEntriesForDate = (date) => {
     if (!date) return [];
     const dateString = date.toISOString().split("T")[0];
-    return calendarEvents.filter((entry) => entry.date === dateString);
+    return events.filter((entry) => entry.start.split("T")[0] === dateString);
   };
 
   const formatDate = (date) => {
@@ -110,7 +123,7 @@ const CalendarPage = () => {
 
   const handleOpenEventModal = (event = null) => {
     if (!token) {
-      toast.error("Please log in to manage calendar events.", { theme });
+      toast.error("Please log in to manage events.", { theme });
       window.location.href = "/login";
       return;
     }
@@ -121,12 +134,14 @@ const CalendarPage = () => {
       setEventType(event.type);
       setEventPriority(event.priority || "medium");
       setEventCompleted(event.completed || false);
+      setEventRecurrence(event.recurrenceRule || "");
     } else {
       setEventTitle("");
       setEventContent("");
       setEventType("journal");
       setEventPriority("medium");
       setEventCompleted(false);
+      setEventRecurrence("");
     }
     setShowEventModal(true);
   };
@@ -136,46 +151,102 @@ const CalendarPage = () => {
       toast.error("Title is required.", { theme });
       return;
     }
+    const endpoint = eventType === "task" ? "/api/tasks" : "/api/journal";
+    const method = editingEvent ? "PUT" : "POST";
+    const url = editingEvent
+      ? `/api/${eventType}s/${editingEvent.id.split("-")[0]}`
+      : endpoint;
     const eventData = {
-      date: selectedDate.toISOString().split("T")[0],
+      userId,
       title: eventTitle,
-      content: eventContent,
-      type: eventType,
-      priority: eventType === "task" ? eventPriority : undefined,
-      completed: eventType === "task" ? eventCompleted : undefined,
+      [eventType === "task" ? "dueDate" : "date"]: selectedDate.toISOString(),
+      ...(eventType === "task"
+        ? {
+            status: eventCompleted ? "Completed" : "To Do",
+            priority: eventPriority,
+            recurrenceRule: eventRecurrence || undefined,
+          }
+        : {}),
+      ...(eventType === "journal"
+        ? { content: eventContent, mood: "neutral" }
+        : {}),
     };
+
     try {
-      if (editingEvent) {
-        await updateCalendarEvent(editingEvent._id, eventData);
-        toast.success("Event updated successfully!", { theme });
-      } else {
-        await createCalendarEvent(eventData);
-        toast.success("Event created successfully!", { theme });
-      }
+      const response = await fetch(`http://localhost:5000${url}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(eventData),
+      });
+      if (!response.ok)
+        throw new Error(
+          `Failed to ${editingEvent ? "update" : "create"} event`
+        );
+      const start = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      ).toISOString();
+      const end = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      ).toISOString();
+      const updatedEvents = await fetchCalendarEvents(start, end);
+      setEvents(updatedEvents);
+      toast.success(
+        `Event ${editingEvent ? "updated" : "created"} successfully!`,
+        { theme }
+      );
       setShowEventModal(false);
       setEditingEvent(null);
     } catch (err) {
-      console.error("Error saving calendar event:", err);
-      toast.error("Failed to save calendar event.", { theme });
+      console.error("Error saving event:", err);
+      toast.error(`Failed to ${editingEvent ? "update" : "create"} event.`, {
+        theme,
+      });
     }
   };
 
-  const handleDeleteEvent = async (eventId) => {
+  const handleDeleteEvent = async (eventId, type) => {
     if (!token) {
-      toast.error("Please log in to delete calendar events.", { theme });
+      toast.error("Please log in to delete events.", { theme });
       window.location.href = "/login";
       return;
     }
+    const endpoint = type === "task" ? "/api/tasks" : "/api/journal";
     try {
-      await deleteCalendarEvent(eventId);
+      const response = await fetch(
+        `http://localhost:5000${endpoint}/${eventId.split("-")[0]}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) throw new Error("Failed to delete event");
+      const start = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      ).toISOString();
+      const end = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      ).toISOString();
+      const updatedEvents = await fetchCalendarEvents(start, end);
+      setEvents(updatedEvents);
       toast.success("Event deleted successfully!", { theme });
     } catch (err) {
-      console.error("Error deleting calendar event:", err);
-      toast.error("Failed to delete calendar event.", { theme });
+      console.error("Error deleting event:", err);
+      toast.error("Failed to delete event.", { theme });
     }
   };
 
-  const filteredEvents = calendarEvents.filter((entry) => {
+  const filteredEvents = events.filter((entry) => {
     const matchesSearch =
       entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (entry.content &&
@@ -183,7 +254,8 @@ const CalendarPage = () => {
     const matchesType = typeFilter === "all" || entry.type === typeFilter;
     const matchesPriority =
       priorityFilter === "all" ||
-      (entry.type === "task" && entry.priority === priorityFilter);
+      (entry.type === "task" &&
+        entry.priority.toLowerCase() === priorityFilter);
     return matchesSearch && matchesType && matchesPriority;
   });
 
@@ -219,6 +291,8 @@ const CalendarPage = () => {
         ? "bg-gray-700 text-blue-400 border-blue-400"
         : "bg-blue-50 text-blue-600 border-blue-300",
   };
+
+  // console.log(events);
 
   return (
     <div className={themeClasses.container}>
@@ -388,7 +462,7 @@ const CalendarPage = () => {
                             <div className="space-y-1">
                               {entries.slice(0, 2).map((entry) => (
                                 <div
-                                  key={entry._id}
+                                  key={entry.id}
                                   className={`text-xs p-1 rounded truncate ${
                                     entry.type === "journal"
                                       ? theme === "dark"
@@ -451,7 +525,7 @@ const CalendarPage = () => {
                 {getEntriesForDate(selectedDate).length > 0 ? (
                   getEntriesForDate(selectedDate).map((entry) => (
                     <div
-                      key={entry._id}
+                      key={entry.id}
                       className={`p-3 rounded-lg border transition-colors ${themeClasses.card} hover:border-blue-300`}
                     >
                       <div className="flex items-start space-x-3">
@@ -485,7 +559,9 @@ const CalendarPage = () => {
                                 Edit
                               </button>
                               <button
-                                onClick={() => handleDeleteEvent(entry._id)}
+                                onClick={() =>
+                                  handleDeleteEvent(entry.id, entry.type)
+                                }
                                 className={`text-sm text-red-500 hover:text-red-600`}
                               >
                                 Delete
@@ -522,6 +598,17 @@ const CalendarPage = () => {
                               {entry.priority} priority
                             </span>
                           )}
+                          {entry.mood && (
+                            <span
+                              className={`inline-block text-xs px-2 py-1 rounded mt-2 ${
+                                theme === "dark"
+                                  ? "bg-purple-900 text-purple-200"
+                                  : "bg-purple-100 text-purple-800"
+                              }`}
+                            >
+                              Mood: {entry.mood}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -553,7 +640,7 @@ const CalendarPage = () => {
                     Journal Entries
                   </span>
                   <span className="font-semibold text-green-600">
-                    {calendarEvents.filter((e) => e.type === "journal").length}
+                    {events.filter((e) => e.type === "journal").length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -566,9 +653,8 @@ const CalendarPage = () => {
                   </span>
                   <span className="font-semibold text-blue-600">
                     {
-                      calendarEvents.filter(
-                        (e) => e.type === "task" && e.completed
-                      ).length
+                      events.filter((e) => e.type === "task" && e.completed)
+                        .length
                     }
                   </span>
                 </div>
@@ -582,9 +668,8 @@ const CalendarPage = () => {
                   </span>
                   <span className="font-semibold text-orange-600">
                     {
-                      calendarEvents.filter(
-                        (e) => e.type === "task" && !e.completed
-                      ).length
+                      events.filter((e) => e.type === "task" && !e.completed)
+                        .length
                     }
                   </span>
                 </div>
@@ -686,6 +771,26 @@ const CalendarPage = () => {
                         <option value="low">Low</option>
                       </select>
                     </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-medium mb-1 ${
+                          theme === "dark" ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        Recurrence (e.g., FREQ=DAILY;INTERVAL=1)
+                      </label>
+                      <input
+                        type="text"
+                        value={eventRecurrence}
+                        onChange={(e) => setEventRecurrence(e.target.value)}
+                        className={`w-full p-2 rounded-lg border transition-colors ${
+                          theme === "dark"
+                            ? "bg-gray-700 border-gray-600 text-white"
+                            : "bg-gray-50 border-gray-300 text-gray-800"
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                        placeholder="Leave blank for non-recurring"
+                      />
+                    </div>
                     <div className="flex items-center">
                       <input
                         type="checkbox"
@@ -704,26 +809,56 @@ const CalendarPage = () => {
                   </>
                 )}
                 {eventType === "journal" && (
-                  <div>
-                    <label
-                      className={`block text-sm font-medium mb-1 ${
-                        theme === "dark" ? "text-gray-300" : "text-gray-700"
-                      }`}
-                    >
-                      Content
-                    </label>
-                    <textarea
-                      value={eventContent}
-                      onChange={(e) => setEventContent(e.target.value)}
-                      className={`w-full p-2 rounded-lg border transition-colors ${
-                        theme === "dark"
-                          ? "bg-gray-700 border-gray-600 text-white"
-                          : "bg-gray-50 border-gray-300 text-gray-800"
-                      } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
-                      rows="4"
-                      placeholder="Event content..."
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label
+                        className={`block text-sm font-medium mb-1 ${
+                          theme === "dark" ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        Content
+                      </label>
+                      <textarea
+                        value={eventContent}
+                        onChange={(e) => setEventContent(e.target.value)}
+                        className={`w-full p-2 rounded-lg border transition-colors ${
+                          theme === "dark"
+                            ? "bg-gray-700 border-gray-600 text-white"
+                            : "bg-gray-50 border-gray-300 text-gray-800"
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                        rows="4"
+                        placeholder="Event content..."
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-medium mb-1 ${
+                          theme === "dark" ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        Mood
+                      </label>
+                      <select
+                        value={eventContent.mood || "neutral"}
+                        onChange={(e) =>
+                          setEventContent({
+                            ...eventContent,
+                            mood: e.target.value,
+                          })
+                        }
+                        className={`w-full p-2 rounded-lg border transition-colors ${
+                          theme === "dark"
+                            ? "bg-gray-700 border-gray-600 text-white"
+                            : "bg-gray-50 border-gray-300 text-gray-800"
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                      >
+                        <option value="happy">Happy</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="sad">Sad</option>
+                        <option value="excited">Excited</option>
+                      </select>
+                    </div>
+                  </>
                 )}
                 <div className="flex justify-end gap-2">
                   <button

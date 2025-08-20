@@ -21,4 +21,7 @@ journalEntrySchema.pre("save", function (next) {
   next();
 });
 
+// Index for performance
+journalEntrySchema.index({ userId: 1, date: 1 });
+
 module.exports = mongoose.model("JournalEntry", journalEntrySchema);
