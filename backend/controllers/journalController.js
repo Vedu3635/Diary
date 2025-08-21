@@ -15,7 +15,7 @@ exports.createJournalEntry = async (req, res) => {
   const { title, content, mood = "neutral", tags = [] } = req.body;
   try {
     const entry = new JournalEntry({
-      userId: req.user,
+      userId: req.user.userId,
       title: title || "Untitled Entry",
       content,
       date,
@@ -35,7 +35,7 @@ exports.updateJournalEntry = async (req, res) => {
   const { title, content, mood, tags, date } = req.body;
   try {
     const entry = await JournalEntry.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user },
+      { _id: req.params.id, userId: req.user.userId },
       { title, content, mood, tags, date, updatedAt: new Date() },
       { new: true }
     );
@@ -52,7 +52,7 @@ exports.deleteJournalEntry = async (req, res) => {
   try {
     const entry = await JournalEntry.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user,
+      userId: req.user.userId,
     });
     if (!entry) {
       return res.status(404).json({ message: "Journal entry not found" });

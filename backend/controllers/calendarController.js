@@ -5,14 +5,14 @@ const JournalEntry = require("../models/JournalEntry");
 // Fetch calendar events (tasks and journal entries) for a date range
 exports.getCalendarEvents = async (req, res) => {
   const { start, end, page = 1, limit = 100 } = req.query;
-  const userId = req.userId; // From authMiddleware
-  // console.log("getCalendarEvents: Request received", {
-  //   userId,
-  //   start,
-  //   end,
-  //   page,
-  //   limit,
-  // });
+  const userId = req.user.userId; // From authMiddleware
+  console.log("getCalendarEvents: Request received", {
+    userId,
+    start,
+    end,
+    page,
+    limit,
+  });
 
   // Validate query parameters
   if (!start || !end) {
@@ -67,9 +67,9 @@ exports.getCalendarEvents = async (req, res) => {
       .limit(Number(limit))
       .lean();
 
-    console.log("getCalendarEvents: Tasks fetched", {
-      taskCount: tasks.length,
-    });
+    // console.log("getCalendarEvents: Tasks fetched", {
+    //   taskCount: tasks.length,
+    // });
 
     // Process tasks into events
     const taskEvents = [];
@@ -90,7 +90,7 @@ exports.getCalendarEvents = async (req, res) => {
           dates.forEach((date) => {
             taskEvents.push({
               id: `${task._id}-${date.toISOString().replace(/[:.]/g, "-")}`,
-              userId: req.user,
+              userId: req.user.userId,
               title: task.title,
               start: date.toISOString(),
               end: new Date(date.getTime() + 30 * 60 * 1000).toISOString(),
@@ -112,7 +112,7 @@ exports.getCalendarEvents = async (req, res) => {
         // Non-recurring task
         taskEvents.push({
           id: task._id.toString(),
-          userId: req.user,
+          userId: req.user.userId,
           title: task.title,
           start: new Date(task.dueDate).toISOString(),
           end: new Date(
@@ -130,21 +130,21 @@ exports.getCalendarEvents = async (req, res) => {
 
     // Fetch journal entries
     const journalEntries = await JournalEntry.find({
-      userId: req.user,
+      userId: req.user.userId,
       date: { $gte: startDate, $lte: endDate },
     })
       .skip(skip)
       .limit(Number(limit))
       .lean();
 
-    console.log("getCalendarEvents: Journal entries fetched", {
-      journalCount: journalEntries.length,
-    });
+    // console.log("getCalendarEvents: Journal entries fetched", {
+    //   journalCount: journalEntries.length,
+    // });
 
     // Process journal entries into events
     const journalEvents = journalEntries.map((entry) => ({
       id: entry._id.toString(),
-      userId: req.user,
+      userId: req.user.userId,
       title: entry.title,
       start: new Date(entry.date).toISOString(),
       end: new Date(entry.date).toISOString(),
@@ -159,9 +159,9 @@ exports.getCalendarEvents = async (req, res) => {
       (a, b) => new Date(a.start) - new Date(b.start)
     );
 
-    console.log("getCalendarEvents: Sending response", {
-      eventCount: events.length,
-    });
+    // console.log("getCalendarEvents: Sending response", {
+    //   eventCount: events.length,
+    // });
     res.status(200).json(events);
   } catch (err) {
     console.error(
@@ -174,25 +174,23 @@ exports.getCalendarEvents = async (req, res) => {
 
 // Redirect CRUD operations to appropriate endpoints
 exports.createCalendarEvent = async (req, res) => {
-  console.log("createCalendarEvent: Redirecting to /api/tasks or /api/journal");
+  // console.log("createCalendarEvent: Redirecting to /api/tasks or /api/journal");
   res.status(400).json({
     message: "Please use /api/tasks or /api/journal to create events",
   });
 };
 
 exports.updateCalendarEvent = async (req, res) => {
-  console.log(
-    "updateCalendarEvent: Redirecting to /api/tasks/:id or /api/journal/:id"
-  );
+  // console.log(
+  //   "updateCalendarEvent: Redirecting to /api/tasks/:id or /api/journal/:id"
+  // );
   res.status(400).json({
     message: "Please use /api/tasks/:id or /api/journal/:id to update events",
   });
 };
 
 exports.deleteCalendarEvent = async (req, res) => {
-  console.log(
-    "deleteCalendarEvent: Redirecting to /api/tasks/:id or /api/journal/:id"
-  );
+  s;
   res.status(400).json({
     message: "Please use /api/tasks/:id or /api/journal/:id to delete events",
   });

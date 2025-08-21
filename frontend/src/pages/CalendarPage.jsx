@@ -17,7 +17,15 @@ import { toast } from "react-toastify";
 import { AppContext } from "../context/AppContext";
 
 const CalendarPage = () => {
-  const { theme, fetchCalendarEvents, token, userId } = useContext(AppContext);
+  const {
+    theme,
+    fetchCalendarEvents,
+    calendarEvents,
+    token,
+    userId,
+    error,
+    loading,
+  } = useContext(AppContext);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("month");
@@ -55,7 +63,10 @@ const CalendarPage = () => {
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   // Fetch events for the current month
+
   useEffect(() => {
+    if (!token || !userId) return; // wait for token to load
+
     const fetchEvents = async () => {
       const start = new Date(
         currentDate.getFullYear(),
@@ -67,11 +78,30 @@ const CalendarPage = () => {
         currentDate.getMonth() + 1,
         0
       ).toISOString();
-      const fetchedEvents = await fetchCalendarEvents(start, end);
-      setEvents(fetchedEvents);
+
+      try {
+        const fetchedEvents = await fetchCalendarEvents(start, end);
+        setEvents(fetchedEvents);
+      } catch (err) {
+        console.error("fetchEvents: Error", {
+          message: err.message,
+          status: err.response?.status,
+          data: err.response?.data,
+        });
+        toast.error(err.message || "Failed to fetch events.", { theme });
+      }
     };
+
     fetchEvents();
-  }, [currentDate, fetchCalendarEvents, userId, token]);
+  }, [currentDate, token, userId]);
+
+  // Display errors from AppContext
+  useEffect(() => {
+    if (error) {
+      console.log("CalendarPage: Error from AppContext", { error });
+      toast.error(error, { theme });
+    }
+  }, [error, theme]);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -151,11 +181,13 @@ const CalendarPage = () => {
       toast.error("Title is required.", { theme });
       return;
     }
-    const endpoint = eventType === "task" ? "/api/tasks" : "/api/journal";
+
+    const endpoint = eventType === "task" ? "/tasks" : "/journal";
     const method = editingEvent ? "PUT" : "POST";
     const url = editingEvent
-      ? `/api/${eventType}s/${editingEvent.id.split("-")[0]}`
-      : endpoint;
+      ? `/api/${eventType}s/${editingEvent._id.split("-")[0]}`
+      : `/api${endpoint}`;
+
     const eventData = {
       userId,
       title: eventTitle,
@@ -181,10 +213,9 @@ const CalendarPage = () => {
         },
         body: JSON.stringify(eventData),
       });
-      if (!response.ok)
-        throw new Error(
-          `Failed to ${editingEvent ? "update" : "create"} event`
-        );
+
+      if (!response.ok) throw new Error("Failed to save event");
+
       const start = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
@@ -196,6 +227,7 @@ const CalendarPage = () => {
         0
       ).toISOString();
       const updatedEvents = await fetchCalendarEvents(start, end);
+
       setEvents(updatedEvents);
       toast.success(
         `Event ${editingEvent ? "updated" : "created"} successfully!`,
@@ -204,7 +236,7 @@ const CalendarPage = () => {
       setShowEventModal(false);
       setEditingEvent(null);
     } catch (err) {
-      console.error("Error saving event:", err);
+      console.error(err);
       toast.error(`Failed to ${editingEvent ? "update" : "create"} event.`, {
         theme,
       });
@@ -217,16 +249,19 @@ const CalendarPage = () => {
       window.location.href = "/login";
       return;
     }
-    const endpoint = type === "task" ? "/api/tasks" : "/api/journal";
+
+    const endpoint = type === "task" ? "/tasks" : "/journal";
     try {
       const response = await fetch(
-        `http://localhost:5000${endpoint}/${eventId.split("-")[0]}`,
+        `http://localhost:5000/api${endpoint}/${eventId.split("-")[0]}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+
       if (!response.ok) throw new Error("Failed to delete event");
+
       const start = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
@@ -238,10 +273,11 @@ const CalendarPage = () => {
         0
       ).toISOString();
       const updatedEvents = await fetchCalendarEvents(start, end);
+
       setEvents(updatedEvents);
       toast.success("Event deleted successfully!", { theme });
     } catch (err) {
-      console.error("Error deleting event:", err);
+      console.error(err);
       toast.error("Failed to delete event.", { theme });
     }
   };
