@@ -19,12 +19,16 @@ import { AppContext } from "../context/AppContext";
 const CalendarPage = () => {
   const {
     theme,
-    fetchCalendarEvents,
-    calendarEvents,
     token,
-    userId,
+
     error,
-    loading,
+    fetchCalendarEvents,
+    createTask,
+    updateTask,
+    deleteTask,
+    createJournalEntry,
+    updateJournalEntry,
+    deleteJournalEntry,
   } = useContext(AppContext);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -36,14 +40,16 @@ const CalendarPage = () => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Event form state
   const [eventTitle, setEventTitle] = useState("");
   const [eventContent, setEventContent] = useState("");
-  const [eventType, setEventType] = useState("journal");
-  const [eventPriority, setEventPriority] = useState("medium");
+  const [eventType, setEventType] = useState("task");
+  const [eventPriority, setEventPriority] = useState("Medium");
   const [eventCompleted, setEventCompleted] = useState(false);
-  const [eventRecurrence, setEventRecurrence] = useState(""); // For task recurrenceRule
+  const [eventRecurrence, setEventRecurrence] = useState("");
+  const [eventCategory, setEventCategory] = useState("Personal");
 
   const months = [
     "January",
@@ -63,25 +69,41 @@ const CalendarPage = () => {
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   // Fetch events for the current month
-
   useEffect(() => {
-    if (!token || !userId) return; // wait for token to load
+    console.log("useEffect triggered", { token, currentDate });
+    if (!token) {
+      console.log("Missing token, skipping fetch");
+      setEvents([]);
+      toast.info("Please log in to view your calendar events.", { theme });
+      return;
+    }
 
     const fetchEvents = async () => {
+      setLoading(true);
       const start = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
         1
-      ).toISOString();
+      );
+      start.setHours(0, 0, 0, 0);
       const end = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() + 1,
         0
-      ).toISOString();
+      );
+      end.setHours(23, 59, 59, 999);
+      console.log("Fetching events with:", {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
 
       try {
-        const fetchedEvents = await fetchCalendarEvents(start, end);
-        setEvents(fetchedEvents);
+        const fetchedEvents = await fetchCalendarEvents(
+          start.toISOString(),
+          end.toISOString()
+        );
+        console.log("Fetched events:", fetchedEvents);
+        setEvents(fetchedEvents || []);
       } catch (err) {
         console.error("fetchEvents: Error", {
           message: err.message,
@@ -89,11 +111,14 @@ const CalendarPage = () => {
           data: err.response?.data,
         });
         toast.error(err.message || "Failed to fetch events.", { theme });
+        setEvents([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchEvents();
-  }, [currentDate, token, userId]);
+  }, [currentDate, token, fetchCalendarEvents, theme]);
 
   // Display errors from AppContext
   useEffect(() => {
@@ -102,6 +127,11 @@ const CalendarPage = () => {
       toast.error(error, { theme });
     }
   }, [error, theme]);
+
+  // Log events whenever they change
+  useEffect(() => {
+    console.log("Events state updated:", events);
+  }, [events]);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -126,7 +156,6 @@ const CalendarPage = () => {
     setCurrentDate(newDate);
   };
 
-  // console.log(events);
   const isToday = (date) => {
     const today = new Date();
     return date?.toDateString() === today.toDateString();
@@ -139,7 +168,12 @@ const CalendarPage = () => {
   const getEntriesForDate = (date) => {
     if (!date) return [];
     const dateString = date.toISOString().split("T")[0];
-    return events.filter((entry) => entry.start.split("T")[0] === dateString);
+    const entries = events.filter((entry) => {
+      const entryDate = entry.start || entry.date;
+      return entryDate && entryDate.split("T")[0] === dateString;
+    });
+    console.log(`Entries for ${dateString}:`, entries);
+    return entries;
   };
 
   const formatDate = (date) => {
@@ -161,17 +195,19 @@ const CalendarPage = () => {
     if (event) {
       setEventTitle(event.title);
       setEventContent(event.content || "");
-      setEventType(event.type);
-      setEventPriority(event.priority || "medium");
+      setEventType(event.type || "task");
+      setEventPriority(event.priority || "Medium");
       setEventCompleted(event.completed || false);
       setEventRecurrence(event.recurrenceRule || "");
+      setEventCategory(event.category || "Personal");
     } else {
       setEventTitle("");
       setEventContent("");
-      setEventType("journal");
-      setEventPriority("medium");
+      setEventType("task");
+      setEventPriority("Medium");
       setEventCompleted(false);
       setEventRecurrence("");
+      setEventCategory("Personal");
     }
     setShowEventModal(true);
   };
@@ -182,53 +218,73 @@ const CalendarPage = () => {
       return;
     }
 
-    const endpoint = eventType === "task" ? "/tasks" : "/journal";
-    const method = editingEvent ? "PUT" : "POST";
-    const url = editingEvent
-      ? `/api/${eventType}s/${editingEvent._id.split("-")[0]}`
-      : `/api${endpoint}`;
-
     const eventData = {
-      userId,
       title: eventTitle,
-      [eventType === "task" ? "dueDate" : "date"]: selectedDate.toISOString(),
+      start: selectedDate.toISOString(),
+      end: new Date(selectedDate.getTime() + 30 * 60 * 1000).toISOString(), // Default 30-minute duration
       ...(eventType === "task"
         ? {
             status: eventCompleted ? "Completed" : "To Do",
+            completed: eventCompleted,
             priority: eventPriority,
             recurrenceRule: eventRecurrence || undefined,
+            category: eventCategory,
           }
         : {}),
       ...(eventType === "journal"
-        ? { content: eventContent, mood: "neutral" }
+        ? { content: eventContent, mood: eventContent.mood || "neutral" }
         : {}),
     };
+    console.log("Saving event:", eventData);
 
     try {
-      const response = await fetch(`http://localhost:5000${url}`, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(eventData),
-      });
+      let updatedEvent;
+      if (editingEvent) {
+        const id = editingEvent.id;
+        if (eventType === "task") {
+          updatedEvent = await updateTask(id, eventData);
+        } else {
+          updatedEvent = await updateJournalEntry(id, eventData);
+        }
+      } else {
+        if (eventType === "task") {
+          updatedEvent = await createTask(eventData);
+        } else {
+          updatedEvent = await createJournalEntry(eventData);
+        }
+      }
 
-      if (!response.ok) throw new Error("Failed to save event");
+      if (!updatedEvent) {
+        throw new Error(
+          `Failed to ${editingEvent ? "update" : "create"} event`
+        );
+      }
+      console.log("Saved event:", updatedEvent);
 
+      // Refresh events
       const start = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
         1
-      ).toISOString();
+      );
+      start.setHours(0, 0, 0, 0);
       const end = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() + 1,
         0
-      ).toISOString();
-      const updatedEvents = await fetchCalendarEvents(start, end);
+      );
+      end.setHours(23, 59, 59, 999);
+      console.log("Refetching events with:", {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+      const updatedEvents = await fetchCalendarEvents(
+        start.toISOString(),
+        end.toISOString()
+      );
+      console.log("Refreshed events after save:", updatedEvents);
 
-      setEvents(updatedEvents);
+      setEvents(updatedEvents || []);
       toast.success(
         `Event ${editingEvent ? "updated" : "created"} successfully!`,
         { theme }
@@ -236,7 +292,7 @@ const CalendarPage = () => {
       setShowEventModal(false);
       setEditingEvent(null);
     } catch (err) {
-      console.error(err);
+      console.error("handleSaveEvent: Error", err);
       toast.error(`Failed to ${editingEvent ? "update" : "create"} event.`, {
         theme,
       });
@@ -250,34 +306,46 @@ const CalendarPage = () => {
       return;
     }
 
-    const endpoint = type === "task" ? "/tasks" : "/journal";
     try {
-      const response = await fetch(
-        `http://localhost:5000/api${endpoint}/${eventId.split("-")[0]}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      let success;
+      if (type === "task") {
+        success = await deleteTask(eventId);
+      } else {
+        success = await deleteJournalEntry(eventId);
+      }
 
-      if (!response.ok) throw new Error("Failed to delete event");
+      if (!success) {
+        throw new Error("Failed to delete event");
+      }
+      console.log(`Deleted ${type} with ID:`, eventId);
 
+      // Refresh events
       const start = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
         1
-      ).toISOString();
+      );
+      start.setHours(0, 0, 0, 0);
       const end = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() + 1,
         0
-      ).toISOString();
-      const updatedEvents = await fetchCalendarEvents(start, end);
+      );
+      end.setHours(23, 59, 59, 999);
+      console.log("Refetching events with:", {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+      const updatedEvents = await fetchCalendarEvents(
+        start.toISOString(),
+        end.toISOString()
+      );
+      console.log("Refreshed events after delete:", updatedEvents);
 
-      setEvents(updatedEvents);
+      setEvents(updatedEvents || []);
       toast.success("Event deleted successfully!", { theme });
     } catch (err) {
-      console.error(err);
+      console.error("handleDeleteEvent: Error", err);
       toast.error("Failed to delete event.", { theme });
     }
   };
@@ -291,7 +359,7 @@ const CalendarPage = () => {
     const matchesPriority =
       priorityFilter === "all" ||
       (entry.type === "task" &&
-        entry.priority.toLowerCase() === priorityFilter);
+        entry.priority.toLowerCase() === priorityFilter.toLowerCase());
     return matchesSearch && matchesType && matchesPriority;
   });
 
@@ -328,7 +396,26 @@ const CalendarPage = () => {
         : "bg-blue-50 text-blue-600 border-blue-300",
   };
 
-  // console.log(events);
+  if (loading) return <div className="text-center p-4">Loading...</div>;
+
+  if (!token) {
+    return (
+      <div className={themeClasses.container}>
+        <div className="max-w-7xl mx-auto px-4 py-8 mt-16 text-center">
+          <Calendar className="w-12 h-12 mx-auto mb-4 text-blue-500" />
+          <h1 className="text-2xl font-semibold mb-4">
+            Please log in to view your calendar
+          </h1>
+          <button
+            onClick={() => (window.location.href = "/login")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${themeClasses.button}`}
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={themeClasses.container}>
@@ -415,9 +502,9 @@ const CalendarPage = () => {
                   className={`px-3 py-2 rounded-lg border transition-colors ${themeClasses.input}`}
                 >
                   <option value="all">All Priorities</option>
-                  <option value="high">High Priority</option>
-                  <option value="medium">Medium Priority</option>
-                  <option value="low">Low Priority</option>
+                  <option value="High">High Priority</option>
+                  <option value="Medium">Medium Priority</option>
+                  <option value="Low">Low Priority</option>
                 </select>
               </div>
             </div>
@@ -618,11 +705,11 @@ const CalendarPage = () => {
                           {entry.priority && (
                             <span
                               className={`inline-block text-xs px-2 py-1 rounded mt-2 ${
-                                entry.priority === "high"
+                                entry.priority === "High"
                                   ? theme === "dark"
                                     ? "bg-red-900 text-red-200"
                                     : "bg-red-100 text-red-800"
-                                  : entry.priority === "medium"
+                                  : entry.priority === "Medium"
                                   ? theme === "dark"
                                     ? "bg-yellow-900 text-yellow-200"
                                     : "bg-yellow-100 text-yellow-800"
@@ -632,6 +719,17 @@ const CalendarPage = () => {
                               }`}
                             >
                               {entry.priority} priority
+                            </span>
+                          )}
+                          {entry.category && (
+                            <span
+                              className={`inline-block text-xs px-2 py-1 rounded mt-2 ${
+                                theme === "dark"
+                                  ? "bg-blue-900 text-blue-200"
+                                  : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              {entry.category}
                             </span>
                           )}
                           {entry.mood && (
@@ -802,10 +900,30 @@ const CalendarPage = () => {
                             : "bg-gray-50 border-gray-300 text-gray-800"
                         } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
                       >
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
                       </select>
+                    </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-medium mb-1 ${
+                          theme === "dark" ? "text-gray-300" : "text-gray-700"
+                        }`}
+                      >
+                        Category
+                      </label>
+                      <input
+                        type="text"
+                        value={eventCategory}
+                        onChange={(e) => setEventCategory(e.target.value)}
+                        className={`w-full p-2 rounded-lg border transition-colors ${
+                          theme === "dark"
+                            ? "bg-gray-700 border-gray-600 text-white"
+                            : "bg-gray-50 border-gray-300 text-gray-800"
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                        placeholder="e.g., Personal, Work"
+                      />
                     </div>
                     <div>
                       <label
@@ -877,10 +995,10 @@ const CalendarPage = () => {
                       <select
                         value={eventContent.mood || "neutral"}
                         onChange={(e) =>
-                          setEventContent({
-                            ...eventContent,
+                          setEventContent((prev) => ({
+                            ...prev,
                             mood: e.target.value,
-                          })
+                          }))
                         }
                         className={`w-full p-2 rounded-lg border transition-colors ${
                           theme === "dark"

@@ -6,13 +6,13 @@ const JournalEntry = require("../models/JournalEntry");
 exports.getCalendarEvents = async (req, res) => {
   const { start, end, page = 1, limit = 100 } = req.query;
   const userId = req.user.userId; // From authMiddleware
-  console.log("getCalendarEvents: Request received", {
-    userId,
-    start,
-    end,
-    page,
-    limit,
-  });
+  // console.log("getCalendarEvents: Request received", {
+  //   userId,
+  //   start,
+  //   end,
+  //   page,
+  //   limit,
+  // });
 
   // Validate query parameters
   if (!start || !end) {
