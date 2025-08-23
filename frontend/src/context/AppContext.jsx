@@ -34,7 +34,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedUserId = localStorage.getItem("userId");
-    console.log("Restoring session:", { storedToken, storedUserId });
+    // console.log("Restoring session:", { storedToken, storedUserId });
     if (storedToken) {
       setToken(storedToken);
       let userIdFromToken = null;
@@ -51,7 +51,7 @@ export const AppProvider = ({ children }) => {
       }
       setUserId(userIdFromToken);
     } else {
-      console.log("No session found in localStorage");
+      // console.log("No session found in localStorage");
       localStorage.removeItem("userId"); // Ensure no stale userId
     }
   }, []);

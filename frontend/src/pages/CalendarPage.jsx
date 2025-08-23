@@ -70,9 +70,9 @@ const CalendarPage = () => {
 
   // Fetch events for the current month
   useEffect(() => {
-    console.log("useEffect triggered", { token, currentDate });
+    // console.log("useEffect triggered", { token, currentDate });
     if (!token) {
-      console.log("Missing token, skipping fetch");
+      // console.log("Missing token, skipping fetch");
       setEvents([]);
       toast.info("Please log in to view your calendar events.", { theme });
       return;
@@ -92,17 +92,17 @@ const CalendarPage = () => {
         0
       );
       end.setHours(23, 59, 59, 999);
-      console.log("Fetching events with:", {
-        start: start.toISOString(),
-        end: end.toISOString(),
-      });
+      // console.log("Fetching events with:", {
+      //   start: start.toISOString(),
+      //   end: end.toISOString(),
+      // });
 
       try {
         const fetchedEvents = await fetchCalendarEvents(
           start.toISOString(),
           end.toISOString()
         );
-        console.log("Fetched events:", fetchedEvents);
+        // console.log("Fetched events:", fetchedEvents);
         setEvents(fetchedEvents || []);
       } catch (err) {
         console.error("fetchEvents: Error", {
@@ -123,15 +123,15 @@ const CalendarPage = () => {
   // Display errors from AppContext
   useEffect(() => {
     if (error) {
-      console.log("CalendarPage: Error from AppContext", { error });
+      // console.log("CalendarPage: Error from AppContext", { error });
       toast.error(error, { theme });
     }
   }, [error, theme]);
 
   // Log events whenever they change
-  useEffect(() => {
-    console.log("Events state updated:", events);
-  }, [events]);
+  // useEffect(() => {
+  //   // console.log("Events state updated:", events);
+  // }, [events]);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -172,7 +172,7 @@ const CalendarPage = () => {
       const entryDate = entry.start || entry.date;
       return entryDate && entryDate.split("T")[0] === dateString;
     });
-    console.log(`Entries for ${dateString}:`, entries);
+    // console.log(`Entries for ${dateString}:`, entries);
     return entries;
   };
 
@@ -235,7 +235,7 @@ const CalendarPage = () => {
         ? { content: eventContent, mood: eventContent.mood || "neutral" }
         : {}),
     };
-    console.log("Saving event:", eventData);
+    // console.log("Saving event:", eventData);
 
     try {
       let updatedEvent;
@@ -259,7 +259,7 @@ const CalendarPage = () => {
           `Failed to ${editingEvent ? "update" : "create"} event`
         );
       }
-      console.log("Saved event:", updatedEvent);
+      // console.log("Saved event:", updatedEvent);
 
       // Refresh events
       const start = new Date(
@@ -274,15 +274,15 @@ const CalendarPage = () => {
         0
       );
       end.setHours(23, 59, 59, 999);
-      console.log("Refetching events with:", {
-        start: start.toISOString(),
-        end: end.toISOString(),
-      });
+      // console.log("Refetching events with:", {
+      //   start: start.toISOString(),
+      //   end: end.toISOString(),
+      // });
       const updatedEvents = await fetchCalendarEvents(
         start.toISOString(),
         end.toISOString()
       );
-      console.log("Refreshed events after save:", updatedEvents);
+      // console.log("Refreshed events after save:", updatedEvents);
 
       setEvents(updatedEvents || []);
       toast.success(
@@ -292,7 +292,7 @@ const CalendarPage = () => {
       setShowEventModal(false);
       setEditingEvent(null);
     } catch (err) {
-      console.error("handleSaveEvent: Error", err);
+      // console.error("handleSaveEvent: Error", err);
       toast.error(`Failed to ${editingEvent ? "update" : "create"} event.`, {
         theme,
       });
@@ -317,7 +317,7 @@ const CalendarPage = () => {
       if (!success) {
         throw new Error("Failed to delete event");
       }
-      console.log(`Deleted ${type} with ID:`, eventId);
+      // console.log(`Deleted ${type} with ID:`, eventId);
 
       // Refresh events
       const start = new Date(
@@ -332,15 +332,15 @@ const CalendarPage = () => {
         0
       );
       end.setHours(23, 59, 59, 999);
-      console.log("Refetching events with:", {
-        start: start.toISOString(),
-        end: end.toISOString(),
-      });
+      // console.log("Refetching events with:", {
+      //   start: start.toISOString(),
+      //   end: end.toISOString(),
+      // });
       const updatedEvents = await fetchCalendarEvents(
         start.toISOString(),
         end.toISOString()
       );
-      console.log("Refreshed events after delete:", updatedEvents);
+      // console.log("Refreshed events//////// after delete:", updatedEvents);
 
       setEvents(updatedEvents || []);
       toast.success("Event deleted successfully!", { theme });
