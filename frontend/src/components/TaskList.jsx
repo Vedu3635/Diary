@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { Check, Calendar, Flag, Tag } from "lucide-react";
 import { AppContext } from "../context/AppContext";
 
-const TaskList = ({ tasks = [] }) => {
+const TaskList = ({ tasks = [], overdueCount = 0 }) => {
   const { theme } = useContext(AppContext);
   const [taskList, setTaskList] = useState(tasks);
   const [filter, setFilter] = useState({
@@ -18,7 +18,7 @@ const TaskList = ({ tasks = [] }) => {
   const toggleTaskCompletion = (taskId) => {
     setTaskList((prevTasks) =>
       prevTasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
+        task._id === taskId ? { ...task, completed: !task.completed } : task
       )
     );
   };
@@ -81,12 +81,14 @@ const TaskList = ({ tasks = [] }) => {
     });
   };
 
-  const isOverdue = (dueDate) => {
-    if (!dueDate) return false;
-    return (
-      new Date(dueDate) < new Date() &&
-      !taskList.find((t) => t.dueDate === dueDate)?.completed
-    );
+  const isOverdue = (dueDate, completed) => {
+    if (!dueDate || completed) return false;
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) return false;
+    const today = new Date();
+    const dueDateStr = due.toISOString().split("T")[0];
+    const todayStr = today.toISOString().split("T")[0];
+    return dueDateStr < todayStr;
   };
 
   return (
@@ -99,13 +101,27 @@ const TaskList = ({ tasks = [] }) => {
             : "bg-white border-gray-200"
         } rounded-lg shadow-sm border p-4`}
       >
-        <h3
-          className={`text-lg font-semibold ${
-            theme === "dark" ? "text-white" : "text-gray-900"
-          } mb-4`}
-        >
-          Filter Tasks
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3
+            className={`text-lg font-semibold ${
+              theme === "dark" ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Filter Tasks
+          </h3>
+          <button
+            onClick={() =>
+              setFilter({ status: "all", priority: "all", category: "all" })
+            }
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              theme === "dark"
+                ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Reset Filters
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Status Filter */}
           <div>
@@ -132,7 +148,6 @@ const TaskList = ({ tasks = [] }) => {
               <option value="completed">Completed</option>
             </select>
           </div>
-
           {/* Priority Filter */}
           <div>
             <label
@@ -159,7 +174,6 @@ const TaskList = ({ tasks = [] }) => {
               <option value="Low">Low</option>
             </select>
           </div>
-
           {/* Category Filter */}
           <div>
             <label
@@ -210,7 +224,7 @@ const TaskList = ({ tasks = [] }) => {
         ) : (
           filteredTasks.map((task) => (
             <div
-              key={task.id}
+              key={task._id}
               className={`${
                 theme === "dark" ? "bg-gray-800" : "bg-white"
               } rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
@@ -231,7 +245,7 @@ const TaskList = ({ tasks = [] }) => {
                 <div className="flex items-start space-x-3">
                   {/* Checkbox */}
                   <button
-                    onClick={() => toggleTaskCompletion(task.id)}
+                    onClick={() => toggleTaskCompletion(task._id)}
                     className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                       task.completed
                         ? "bg-green-500 border-green-500 text-white"
@@ -424,11 +438,7 @@ const TaskList = ({ tasks = [] }) => {
                   theme === "dark" ? "text-red-400" : "text-red-600"
                 }`}
               >
-                {
-                  filteredTasks.filter(
-                    (t) => isOverdue(t.dueDate) && !t.completed
-                  ).length
-                }
+                {overdueCount}
               </p>
               <p
                 className={`text-sm ${

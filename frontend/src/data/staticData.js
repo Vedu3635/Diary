@@ -69,29 +69,3 @@ export const staticGoals = [
     type: "task",
   },
 ];
-
-export const staticSettings = {
-  theme: "light",
-  font: "sans-serif",
-  notifications: { tasks: true, journal: true, goals: true },
-  passcode: false,
-};
-
-// Add this to staticData.js
-
-export const staticCalendarEvents = [
-  {
-    id: 1,
-    title: "Team Meeting",
-    date: "2025-07-25",
-    description: "Weekly sync-up with the team",
-    type: "work",
-  },
-  {
-    id: 2,
-    title: "Doctor Appointment",
-    date: "2025-07-26",
-    description: "Health checkup",
-    type: "personal",
-  },
-];

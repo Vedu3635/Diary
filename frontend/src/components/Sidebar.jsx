@@ -93,15 +93,6 @@ const Sidebar = () => {
                       {item.icon}
                     </span>
                     <span className="font-medium text-sm">{item.label}</span>
-                    {isActive && (
-                      <div
-                        className={`ml-auto w-2 h-2 bg-gradient-to-r ${
-                          theme === "dark"
-                            ? "from-purple-400 to-blue-400"
-                            : "from-blue-400 to-purple-400"
-                        } rounded-full animate-pulse`}
-                      />
-                    )}
                   </button>
                 </li>
               );
