@@ -1,131 +1,221 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
 const connectDB = require("./config/db");
-const User = require("./models/User");
 const Task = require("./models/Task");
-const JournalEntry = require("./models/JournalEntry");
-const CalendarEvent = require("./models/CalendarEvent");
 require("dotenv").config();
 
-const seedDatabase = async () => {
+const seed = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
 
-    // Clear existing data
-    await User.deleteMany({});
-    await Task.deleteMany({});
-    await JournalEntry.deleteMany({});
-    await CalendarEvent.deleteMany({});
-    console.log("Existing data cleared");
+    // Clear only tasks (keep users/journal/events intact)
+    // await Task.deleteMany({});/
+    console.log("🗑️ Existing tasks cleared");
 
-    // Create dummy users
-    const users = [
-      {
-        username: "john_doe",
-        email: "john@example.com",
-        password: await bcrypt.hash("password123", 10),
-      },
-      {
-        username: "jane_smith",
-        email: "jane@example.com",
-        password: await bcrypt.hash("password123", 10),
-      },
-    ];
-
-    const savedUsers = await User.insertMany(users);
-    console.log("Users seeded");
-
-    // Create dummy tasks
+    // Dummy tasks (you can expand this)
     const tasks = [
+      // --- User 1: 68833bf6dd799be897dda88b ---
       {
-        userId: savedUsers[0]._id,
-        title: "Design new landing page",
-        description: "Create a responsive landing page for the website",
-        dueDate: new Date("2025-08-01"),
+        userId: "68833bf6dd799be897dda88b",
+        title: "Prepare resume",
+        description: "Update projects and add certifications",
+        dueDate: "2025-08-10T00:00:00.000Z",
         status: "To Do",
+        priority: "High",
+        category: "Career",
+      },
+      {
+        userId: "68833bf6dd799be897dda88b",
+        title: "Buy groceries",
+        description: "Milk, eggs, bread, and vegetables",
+        dueDate: "2025-08-01T00:00:00.000Z",
+        status: "Completed",
+        priority: "Low",
+        category: "Personal",
+      },
+      {
+        userId: "68833bf6dd799be897dda88b",
+        title: "Team meeting",
+        description: "Weekly sync-up with team members",
+        dueDate: "2025-09-02T10:00:00.000Z",
+        status: "To Do",
+        priority: "Medium",
+        category: "Work",
+      },
+      {
+        userId: "68833bf6dd799be897dda88b",
+        title: "Doctor appointment",
+        description: "Routine check-up with Dr. Patel",
+        dueDate: "2025-09-05T15:00:00.000Z",
+        status: "To Do",
+        priority: "High",
+        category: "Health",
+      },
+      {
+        userId: "68833bf6dd799be897dda88b",
+        title: "Pay electricity bill",
+        description: "Clear dues before deadline",
+        dueDate: "2025-08-25T00:00:00.000Z",
+        status: "In Progress",
+        priority: "Medium",
+        category: "Finance",
+      },
+      {
+        userId: "68833bf6dd799be897dda88b",
+        title: "Finish online course",
+        description: "Complete ReactJS course on Udemy",
+        dueDate: "2025-09-12T00:00:00.000Z",
+        status: "To Do",
+        priority: "High",
+        category: "Learning",
+      },
+      {
+        userId: "68833bf6dd799be897dda88b",
+        title: "Organize workspace",
+        description: "Clean desk and sort documents",
+        dueDate: "2025-08-28T00:00:00.000Z",
+        status: "Completed",
+        priority: "Low",
+        category: "Personal",
+      },
+
+      // --- User 2: 68833f1205e123c71c693700 ---
+      {
+        userId: "68833f1205e123c71c693700",
+        title: "Finish reading book",
+        description: "Complete the last 3 chapters of 'Atomic Habits'",
+        dueDate: "2025-08-05T00:00:00.000Z",
+        status: "To Do",
+        priority: "Low",
+        category: "Hobby",
+      },
+      {
+        userId: "68833f1205e123c71c693700",
+        title: "Workout session",
+        description: "1-hour strength training at the gym",
+        dueDate: "2025-09-01T07:00:00.000Z",
+        status: "To Do",
+        priority: "High",
+        category: "Health",
+      },
+      {
+        userId: "68833f1205e123c71c693700",
+        title: "Submit project report",
+        description: "Finalize and email project report to manager",
+        dueDate: "2025-08-20T00:00:00.000Z",
+        status: "In Progress",
         priority: "High",
         category: "Work",
       },
       {
-        userId: savedUsers[0]._id,
-        title: "Grocery shopping",
-        description: "Buy groceries for the week",
-        dueDate: new Date("2025-07-26"),
-        status: "In Progress",
+        userId: "68833f1205e123c71c693700",
+        title: "Buy birthday gift",
+        description: "Get a gift for Alex’s birthday",
+        dueDate: "2025-09-04T00:00:00.000Z",
+        status: "To Do",
         priority: "Medium",
         category: "Personal",
       },
       {
-        userId: savedUsers[1]._id,
-        title: "Prepare presentation",
-        description: "Create slides for client meeting",
-        dueDate: new Date("2025-07-30"),
+        userId: "68833f1205e123c71c693700",
+        title: "Laundry",
+        description: "Wash and fold clothes",
+        dueDate: "2025-08-22T00:00:00.000Z",
+        status: "Completed",
+        priority: "Low",
+        category: "Chores",
+      },
+      {
+        userId: "68833f1205e123c71c693700",
+        title: "Coding practice",
+        description: "Solve 3 LeetCode problems",
+        dueDate: "2025-09-01T21:00:00.000Z",
+        status: "To Do",
+        priority: "High",
+        category: "Learning",
+      },
+      {
+        userId: "68833f1205e123c71c693700",
+        title: "Weekend trip planning",
+        description: "Decide location and book hotel",
+        dueDate: "2025-09-10T00:00:00.000Z",
+        status: "To Do",
+        priority: "Medium",
+        category: "Leisure",
+      },
+
+      // --- User 3: 68838a9e950d993e1b328592 ---
+      {
+        userId: "68838a9e950d993e1b328592",
+        title: "Call parents",
+        description: "Weekly catch-up call",
+        dueDate: "2025-08-03T00:00:00.000Z",
+        status: "Completed",
+        priority: "Low",
+        category: "Personal",
+      },
+      {
+        userId: "68838a9e950d993e1b328592",
+        title: "Client presentation",
+        description: "Prepare slides for Monday presentation",
+        dueDate: "2025-09-03T09:30:00.000Z",
         status: "To Do",
         priority: "High",
         category: "Work",
       },
+      {
+        userId: "68838a9e950d993e1b328592",
+        title: "Plan weekend trip",
+        description: "Research destinations and book tickets",
+        dueDate: "2025-08-15T00:00:00.000Z",
+        status: "To Do",
+        priority: "Medium",
+        category: "Leisure",
+      },
+      {
+        userId: "68838a9e950d993e1b328592",
+        title: "Pay credit card bill",
+        description: "Clear dues before penalty",
+        dueDate: "2025-09-08T00:00:00.000Z",
+        status: "To Do",
+        priority: "High",
+        category: "Finance",
+      },
+      {
+        userId: "68838a9e950d993e1b328592",
+        title: "Attend yoga class",
+        description: "Evening relaxation yoga",
+        dueDate: "2025-08-29T18:00:00.000Z",
+        status: "In Progress",
+        priority: "Medium",
+        category: "Health",
+      },
+      {
+        userId: "68838a9e950d993e1b328592",
+        title: "Shopping for festival",
+        description: "Buy clothes and sweets",
+        dueDate: "2025-09-12T00:00:00.000Z",
+        status: "To Do",
+        priority: "Medium",
+        category: "Personal",
+      },
+      {
+        userId: "68838a9e950d993e1b328592",
+        title: "Write blog post",
+        description: "Draft article on productivity hacks",
+        dueDate: "2025-08-18T00:00:00.000Z",
+        status: "To Do",
+        priority: "Low",
+        category: "Hobby",
+      },
     ];
 
     await Task.insertMany(tasks);
-    console.log("Tasks seeded");
-
-    // Create dummy journal entries
-    const journalEntries = [
-      {
-        userId: savedUsers[0]._id,
-        title: "Morning Reflection",
-        content: "Feeling motivated to start the day with focus.",
-        date: new Date("2025-07-24"),
-      },
-      {
-        userId: savedUsers[0]._id,
-        title: "Evening Thoughts",
-        content: "Reflected on today's progress and planned for tomorrow.",
-        date: new Date("2025-07-24"),
-      },
-      {
-        userId: savedUsers[1]._id,
-        title: "Project Ideas",
-        content: "Brainstormed ideas for the new app feature.",
-        date: new Date("2025-07-23"),
-      },
-    ];
-
-    await JournalEntry.insertMany(journalEntries);
-    console.log("Journal entries seeded");
-
-    // Create dummy calendar events
-    const calendarEvents = [
-      {
-        userId: savedUsers[0]._id,
-        title: "Team Meeting",
-        date: new Date("2025-07-25"),
-        time: "10:00",
-      },
-      {
-        userId: savedUsers[0]._id,
-        title: "Doctor Appointment",
-        date: new Date("2025-07-27"),
-        time: "14:00",
-      },
-      {
-        userId: savedUsers[1]._id,
-        title: "Client Call",
-        date: new Date("2025-07-26"),
-        time: "15:30",
-      },
-    ];
-
-    await CalendarEvent.insertMany(calendarEvents);
-    console.log("Calendar events seeded");
-
-    console.log("Database seeding completed");
+    console.log("✅ Tasks seeded successfully!");
     process.exit();
   } catch (error) {
-    console.error("Error seeding database:", error);
+    console.error("❌ Error seeding tasks:", error);
     process.exit(1);
   }
 };
 
-seedDatabase();
+seed();

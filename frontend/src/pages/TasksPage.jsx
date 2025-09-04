@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from "react";
-import { Search, Plus, Filter } from "lucide-react";
+import { Search, Plus, Filter, AlertTriangle } from "lucide-react";
 import { AppContext } from "../context/AppContext";
 import TaskForm from "../components/TaskForm";
 import TaskList2 from "../components/TaskList2";
 import { toast } from "react-toastify";
+import { Link } from "react-router-dom";
 
 const TasksPage = () => {
   const { theme, tasks, createTask, updateTask, deleteTask, error, token } =
@@ -17,8 +18,16 @@ const TasksPage = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  const isOverdue = (dueDate, status) => {
+    if (!dueDate || status === "Completed") return false;
+    return new Date(dueDate) < new Date();
+  };
+
+  const overdueCount = tasks.filter((task) =>
+    isOverdue(task.dueDate, task.status)
+  ).length;
+
   useEffect(() => {
-    // console.log("TasksPage state:", { isTaskFormOpen, editingTask, tasks });
     setFilteredTasks(tasks);
   }, [tasks]);
 
@@ -32,13 +41,29 @@ const TasksPage = () => {
     const filtered = tasks.filter((task) => {
       const matchesSearch =
         task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        "" ||
-        task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        "" ||
-        task.assignee?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        "";
-      const matchesStatus =
-        statusFilter === "all" || task.status === statusFilter;
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      let matchesStatus = true;
+      if (statusFilter === "overdue") {
+        matchesStatus = isOverdue(task.dueDate, task.status);
+      } else if (statusFilter === "today") {
+        const today = new Date();
+        const due = new Date(task.dueDate);
+        matchesStatus =
+          task.dueDate &&
+          due.getDate() === today.getDate() &&
+          due.getMonth() === today.getMonth() &&
+          due.getFullYear() === today.getFullYear();
+      } else if (statusFilter === "thisweek") {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const due = new Date(task.dueDate);
+        matchesStatus = task.dueDate && due >= today && due <= weekFromNow;
+      } else if (statusFilter === "noduedate") {
+        matchesStatus = !task.dueDate;
+      } else if (statusFilter !== "all") {
+        matchesStatus = task.status === statusFilter;
+      }
       const matchesPriority =
         priorityFilter === "all" || task.priority === priorityFilter;
       const matchesCategory =
@@ -47,7 +72,7 @@ const TasksPage = () => {
         matchesSearch && matchesStatus && matchesPriority && matchesCategory
       );
     });
-    // console.log("Filtered tasks:", filtered);
+
     setFilteredTasks(filtered);
   }, [tasks, searchTerm, statusFilter, priorityFilter, categoryFilter]);
 
@@ -57,7 +82,6 @@ const TasksPage = () => {
       window.location.href = "/login";
       return;
     }
-    console.log("handleCreateTask: Opening form");
     setEditingTask(null);
     setIsTaskFormOpen(true);
   };
@@ -68,7 +92,6 @@ const TasksPage = () => {
       window.location.href = "/login";
       return;
     }
-    console.log("handleEditTask:", task);
     setEditingTask(task);
     setIsTaskFormOpen(true);
   };
@@ -149,15 +172,50 @@ const TasksPage = () => {
             >
               Tasks
             </h1>
-            <p
-              className={`mt-1 ${
-                theme === "dark" ? "text-gray-400" : "text-gray-600"
-              }`}
-            >
-              Manage and track all your tasks
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p
+                className={`${
+                  theme === "dark" ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                Manage and track all your tasks
+              </p>
+              {overdueCount > 0 && (
+                <span
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    theme === "dark"
+                      ? "bg-red-900/20 text-red-400"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  {overdueCount} overdue
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3">
+            {overdueCount > 0 && (
+              <button
+                onClick={() =>
+                  setStatusFilter((prev) =>
+                    prev === "overdue" ? "all" : "overdue"
+                  )
+                }
+                className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                  statusFilter === "overdue"
+                    ? theme === "dark"
+                      ? "bg-red-900/20 border-red-500 text-red-400"
+                      : "bg-red-50 border-red-200 text-red-700"
+                    : theme === "dark"
+                    ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span className="hidden sm:inline">Show Overdue</span>
+              </button>
+            )}
             <button
               onClick={handleCreateTask}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -165,8 +223,19 @@ const TasksPage = () => {
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">New Task</span>
             </button>
+            <Link
+              to="/archive"
+              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                theme === "dark"
+                  ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <span className="hidden sm:inline">View Archive</span>
+            </Link>
           </div>
         </div>
+
         <div
           className={`${
             theme === "dark"
@@ -229,6 +298,10 @@ const TasksPage = () => {
                   }`}
                 >
                   <option value="all">All Status</option>
+                  <option value="overdue">🚨 Overdue & Critical</option>
+                  <option value="today">⚡ Due Today</option>
+                  <option value="thisweek">📅 Due This Week</option>
+                  <option value="noduedate">📝 No Due Date</option>
                   <option value="To Do">To Do</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Completed">Completed</option>
@@ -305,6 +378,15 @@ const TasksPage = () => {
             }`}
           >
             Showing {filteredTasks.length} of {tasks.length} tasks
+            {statusFilter === "overdue" && filteredTasks.length > 0 && (
+              <span
+                className={`ml-2 font-medium ${
+                  theme === "dark" ? "text-red-400" : "text-red-600"
+                }`}
+              >
+                (Overdue tasks)
+              </span>
+            )}
           </div>
         </div>
         <TaskList2

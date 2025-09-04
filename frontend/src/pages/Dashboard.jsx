@@ -83,7 +83,7 @@ const Dashboard = () => {
         status: t.status,
       })),
       recentEntries: recentEntries.length,
-      staticGoals: staticGoals.length,
+      staticGoalsCount: staticGoals.length,
       tasks,
       journalEntries: journalEntries.map((entry) => ({
         _id: entry._id,
@@ -93,7 +93,7 @@ const Dashboard = () => {
         mood: entry.mood,
         tags: entry.tags,
       })),
-      staticGoals,
+
       isDataFetched,
       loading,
       error,
