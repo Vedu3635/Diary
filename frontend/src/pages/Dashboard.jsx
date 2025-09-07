@@ -178,6 +178,7 @@ const Dashboard = () => {
           ) : (
             <TaskList
               tasks={showOverdue ? overdueTasks : todayTasks}
+              overdueCount={overdueTasks.length}
               onEditTask={handleEditTask}
               onDeleteTask={deleteTask}
               onToggleStatus={updateTask}

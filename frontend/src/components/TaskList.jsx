@@ -11,8 +11,8 @@ import {
 import { AppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
 
-const TaskList = ({ tasks = [], overdueCount = 0, onEditTask }) => {
-  const { theme, updateTask, deleteTask } = useContext(AppContext);
+const TaskList = ({ tasks = [], overdueCount = 0, onEditTask, theme }) => {
+  const { updateTask, deleteTask } = useContext(AppContext);
   const [filter, setFilter] = useState({
     status: "all",
     priority: "all",
