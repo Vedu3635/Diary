@@ -5,12 +5,16 @@ import { AppContext } from "../context/AppContext";
 import TaskList from "../components/TaskList";
 import JournalEntry from "../components/JournalEntry";
 import GoalTracker from "../components/GoalTracker";
+import TaskForm from "../components/TaskForm";
 import { staticGoals } from "../data/staticData";
 
 const Dashboard = () => {
   const {
     theme,
     tasks,
+    createTask,
+    updateTask,
+    deleteTask,
     journalEntries,
     token,
     error,
@@ -19,10 +23,14 @@ const Dashboard = () => {
     isDataFetched,
     fetchData,
   } = useContext(AppContext);
+
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [showOverdue, setShowOverdue] = useState(false);
   const navigate = useNavigate();
   const [today] = useState(() => {
     const date = new Date();
-    return date.toISOString().split("T")[0]; // e.g., "2025-09-01"
+    return date.toISOString().split("T")[0];
   });
 
   useEffect(() => {
@@ -53,52 +61,53 @@ const Dashboard = () => {
     }
   }, [isInitialized, token, isDataFetched, fetchData]);
 
-  // Filter tasks for today
   const todayTasks = tasks.filter((task) => {
     if (!task.dueDate) return false;
     const due = new Date(task.dueDate);
-    if (isNaN(due.getTime())) return false; // Invalid date
+    if (isNaN(due.getTime())) return false;
     return due.toISOString().split("T")[0] === today;
   });
 
-  // Calculate overdue count from all tasks
-  const overdueCount = tasks.filter((task) => {
+  const overdueTasks = tasks.filter((task) => {
     if (!task.dueDate || task.status === "Completed") return false;
     const due = new Date(task.dueDate);
     if (isNaN(due.getTime())) return false;
     const today = new Date();
-    const dueDateStr = due.toISOString().split("T")[0];
-    const todayStr = today.toISOString().split("T")[0];
-    return dueDateStr < todayStr;
-  }).length;
+    return due.toISOString().split("T")[0] < today.toISOString().split("T")[0];
+  });
 
   const recentEntries = journalEntries.slice(0, 2);
 
-  useEffect(() => {
-    console.log("Dashboard: Data updated", {
-      todayTasks: todayTasks.map((t) => ({
-        _id: t._id,
-        title: t.title,
-        dueDate: t.dueDate,
-        status: t.status,
-      })),
-      recentEntries: recentEntries.length,
-      staticGoalsCount: staticGoals.length,
-      tasks,
-      journalEntries: journalEntries.map((entry) => ({
-        _id: entry._id,
-        title: entry.title,
-        date: entry.date,
-        content: entry.content,
-        mood: entry.mood,
-        tags: entry.tags,
-      })),
+  const handleEditTask = (task) => {
+    if (!token) {
+      toast.error("Please log in to edit tasks.", { theme });
+      navigate("/login");
+      return;
+    }
+    setEditingTask(task);
+    setIsTaskFormOpen(true);
+  };
 
-      isDataFetched,
-      loading,
-      error,
-    });
-  }, [todayTasks, recentEntries, isDataFetched, loading, error]);
+  const handleSaveTask = async (taskData) => {
+    if (!token) {
+      toast.error("Please log in to save tasks.", { theme });
+      navigate("/login");
+      return;
+    }
+    try {
+      if (editingTask) {
+        await updateTask(editingTask._id, taskData);
+        toast.success("Task updated successfully!", { theme });
+      } else {
+        await createTask(taskData);
+        toast.success("Task created successfully!", { theme });
+      }
+      setIsTaskFormOpen(false);
+      setEditingTask(null);
+    } catch (err) {
+      toast.error("Failed to save task.", { theme });
+    }
+  };
 
   const themeClasses = {
     container:
@@ -143,13 +152,37 @@ const Dashboard = () => {
           )}
 
         <section className={`p-6 rounded-lg ${themeClasses.card}`}>
-          <h2 className={`text-xl font-semibold mb-4 ${themeClasses.title}`}>
-            Today's Tasks
-          </h2>
-          {todayTasks.length === 0 && !loading && isDataFetched ? (
-            <p className={themeClasses.text}>No tasks due today.</p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className={`text-xl font-semibold ${themeClasses.title}`}>
+              {showOverdue ? "Overdue Tasks" : "Today's Tasks"}
+            </h2>
+            <button
+              onClick={() => setShowOverdue(!showOverdue)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                theme === "dark"
+                  ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {showOverdue
+                ? "Show Today's Tasks"
+                : `Show Overdue Tasks (${overdueTasks.length})`}
+            </button>
+          </div>
+          {(showOverdue ? overdueTasks : todayTasks).length === 0 &&
+          !loading &&
+          isDataFetched ? (
+            <p className={themeClasses.text}>
+              {showOverdue ? "No overdue tasks." : "No tasks due today."}
+            </p>
           ) : (
-            <TaskList tasks={todayTasks} overdueCount={overdueCount} />
+            <TaskList
+              tasks={showOverdue ? overdueTasks : todayTasks}
+              onEditTask={handleEditTask}
+              onDeleteTask={deleteTask}
+              onToggleStatus={updateTask}
+              theme={theme}
+            />
           )}
         </section>
 
@@ -194,6 +227,20 @@ const Dashboard = () => {
             ))
           )}
         </section>
+
+        {isTaskFormOpen && (
+          <TaskForm
+            isOpen={isTaskFormOpen}
+            onClose={() => {
+              setIsTaskFormOpen(false);
+              setEditingTask(null);
+            }}
+            task={editingTask}
+            onSave={handleSaveTask}
+            initialData={editingTask}
+            theme={theme}
+          />
+        )}
       </div>
     </div>
   );

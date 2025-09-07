@@ -62,9 +62,8 @@ const TaskList2 = ({
   const isDueLater = (dueDate) => {
     if (!dueDate) return false;
     const today = new Date();
-    const due = new Date(dueDate);
     const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return due > weekFromNow;
+    return new Date(dueDate) > weekFromNow;
   };
 
   const isWithinLast30Days = (date) => {
@@ -78,8 +77,7 @@ const TaskList2 = ({
     if (!dueDate) return 0;
     const today = new Date();
     const due = new Date(dueDate);
-    const diffTime = today - due;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.ceil((today - due) / (1000 * 60 * 60 * 24));
   };
 
   const getPriorityColor = (priority) => {
@@ -131,167 +129,26 @@ const TaskList2 = ({
     });
   };
 
-  // Valid task IDs from the provided dataset
-  const validTaskIds = [
-    "68b5985e58cc7d1085e0c40c", // Write documentation
-    "68b598ebf3866c0eb1320a0e", // Prepare resume
-    "68b598ebf3866c0eb1320a12", // Pay electricity bill
-    "68b598ebf3866c0eb1320a14", // Organize workspace
-    "68b5985e58cc7d1085e0c40d", // Prepare presentation
-    "68b598ebf3866c0eb1320a10", // Team meeting
-    "68b5985e58cc7d1085e0c40e", // Book doctor appointment
-    "68b598ebf3866c0eb1320a11", // Doctor appointment
-    "68b598ebf3866c0eb1320a13", // Finish online course
-  ];
-
-  // Filter tasks to only include valid IDs
-  const filteredTasks = tasks.filter((task) => {
-    if (!validTaskIds.includes(task._id)) {
-      console.warn(`Unexpected task detected: ${task._id} - ${task.title}`);
-      return false;
-    }
-    return true;
-  });
-
-  // Group tasks by time categories
   const groupedTasks = {
-    overdue: filteredTasks.filter(
-      (task) =>
-        isOverdue(task.dueDate, task.status) &&
-        task.status.toLowerCase() !== "completed" // still exclude completed ones
+    overdue: tasks.filter((task) => isOverdue(task.dueDate, task.status)),
+    today: tasks.filter(
+      (task) => isDueToday(task.dueDate) && task.status !== "Completed"
     ),
-
-    today: filteredTasks.filter((task) => {
-      const isValid = isDueToday(task.dueDate) && task.status !== "Completed";
-      if (isValid && task.status === "Completed") {
-        console.warn(
-          `Task in today should not be Completed: ${task._id} - ${task.title}`
-        );
-      }
-      return isValid;
-    }),
-    thisWeek: filteredTasks.filter((task) => {
-      const isValid =
-        isDueThisWeek(task.dueDate) && task.status !== "Completed";
-      if (isValid && task.status === "Completed") {
-        console.warn(
-          `Task in thisWeek should not be Completed: ${task._id} - ${task.title}`
-        );
-      }
-      return isValid;
-    }),
-    later: filteredTasks.filter((task) => {
-      const isValid = isDueLater(task.dueDate) && task.status !== "Completed";
-      if (isValid && task.status === "Completed") {
-        console.warn(
-          `Task in later should not be Completed: ${task._id} - ${task.title}`
-        );
-      }
-      return isValid;
-    }),
-    noDueDate: filteredTasks.filter((task) => {
-      const isValid = !task.dueDate && task.status !== "Completed";
-      if (isValid && task.status === "Completed") {
-        console.warn(
-          `Task in noDueDate should not be Completed: ${task._id} - ${task.title}`
-        );
-      }
-      return isValid;
-    }),
-    completed: filteredTasks.filter((task) => {
-      const isValid =
-        task.status === "Completed" && isWithinLast30Days(task.createdAt);
-      if (isValid && task.status !== "Completed") {
-        console.warn(
-          `Task in completed should be Completed: ${task._id} - ${task.title}`
-        );
-      }
-      return isValid;
-    }),
+    thisWeek: tasks.filter(
+      (task) => isDueThisWeek(task.dueDate) && task.status !== "Completed"
+    ),
+    later: tasks.filter(
+      (task) => isDueLater(task.dueDate) && task.status !== "Completed"
+    ),
+    noDueDate: tasks.filter(
+      (task) => !task.dueDate && task.status !== "Completed"
+    ),
+    completed: tasks.filter(
+      (task) =>
+        task.status === "Completed" && isWithinLast30Days(task.createdAt)
+    ),
   };
 
-  // Check if "Prepare presentation" is in overdue
-  const hasPreparePresentation = groupedTasks.overdue.some(
-    (task) => task._id === "68b5985e58cc7d1085e0c40d"
-  );
-  if (!hasPreparePresentation) {
-    console.warn(
-      "Prepare presentation (ID: 68b5985e58cc7d1085e0c40d) missing from Overdue & Critical"
-    );
-  }
-
-  // Debugging logs
-  console.log(
-    "Input Tasks:",
-    tasks.length,
-    tasks.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      dueDate: t.dueDate,
-      priority: t.priority,
-      createdAt: t.createdAt,
-    }))
-  );
-  console.log(
-    "Filtered Tasks:",
-    filteredTasks.length,
-    filteredTasks.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      dueDate: t.dueDate,
-      priority: t.priority,
-      createdAt: t.createdAt,
-    }))
-  );
-  console.log("Grouped Tasks:", {
-    overdue: groupedTasks.overdue.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      priority: t.priority,
-      dueDate: t.dueDate,
-      createdAt: t.createdAt,
-    })),
-    today: groupedTasks.today.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      dueDate: t.dueDate,
-      createdAt: t.createdAt,
-    })),
-    thisWeek: groupedTasks.thisWeek.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      dueDate: t.dueDate,
-      createdAt: t.createdAt,
-    })),
-    later: groupedTasks.later.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      dueDate: t.dueDate,
-      createdAt: t.createdAt,
-    })),
-    noDueDate: groupedTasks.noDueDate.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      createdAt: t.createdAt,
-    })),
-    completed: groupedTasks.completed.map((t) => ({
-      _id: t._id,
-      title: t.title,
-      status: t.status,
-      dueDate: t.dueDate,
-      createdAt: t.createdAt,
-    })),
-  });
-  console.log("Collapsed Sections:", collapsedSections);
-
-  // Sort tasks within each group
   Object.keys(groupedTasks).forEach((key) => {
     groupedTasks[key].sort((a, b) => {
       const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -315,7 +172,6 @@ const TaskList2 = ({
             : "bg-white border-gray-200 hover:border-gray-300"
         }`}
       >
-        {/* Overdue Alert Banner */}
         {taskOverdue && sectionType === "overdue" && (
           <div
             className={`flex items-center gap-2 mb-3 p-2 rounded-lg ${
@@ -441,17 +297,7 @@ const TaskList2 = ({
 
   const renderSection = (title, emoji, tasks, sectionKey, bgColor) => {
     if (tasks.length === 0) return null;
-    console.log(
-      `Rendering ${sectionKey} with ${tasks.length} tasks:`,
-      tasks.map((t) => ({
-        _id: t._id,
-        title: t.title,
-        status: t.status,
-        priority: t.priority,
-        dueDate: t.dueDate,
-        createdAt: t.createdAt,
-      }))
-    );
+
     const isCollapsed = collapsedSections[sectionKey];
 
     return (
@@ -535,7 +381,7 @@ const TaskList2 = ({
     return colors[section] || colors.later;
   };
 
-  if (filteredTasks.length === 0) {
+  if (tasks.length === 0) {
     return (
       <div
         className={`text-center py-12 ${

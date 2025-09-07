@@ -1,33 +1,65 @@
-import React, { useState, useEffect, useContext } from "react";
-import { Check, Calendar, Flag, Tag } from "lucide-react";
+import React, { useContext, useState } from "react";
+import {
+  CheckCircle,
+  Circle,
+  Edit3,
+  Trash2,
+  Calendar,
+  Flag,
+  Tag,
+} from "lucide-react";
 import { AppContext } from "../context/AppContext";
+import { toast } from "react-toastify";
 
-const TaskList = ({ tasks = [], overdueCount = 0 }) => {
-  const { theme } = useContext(AppContext);
-  const [taskList, setTaskList] = useState(tasks);
+const TaskList = ({ tasks = [], overdueCount = 0, onEditTask }) => {
+  const { theme, updateTask, deleteTask } = useContext(AppContext);
   const [filter, setFilter] = useState({
     status: "all",
     priority: "all",
     category: "all",
   });
+  const [updatingTaskId, setUpdatingTaskId] = useState(null);
 
-  useEffect(() => {
-    setTaskList(tasks);
-  }, [tasks]);
+  const onToggleStatus = async (taskId) => {
+    if (updatingTaskId) return; // Prevent multiple clicks
+    const task = tasks.find((t) => t._id === taskId);
+    if (!task) return;
 
-  const toggleTaskCompletion = (taskId) => {
-    setTaskList((prevTasks) =>
-      prevTasks.map((task) =>
-        task._id === taskId ? { ...task, completed: !task.completed } : task
-      )
-    );
+    // Cycle through statuses: To Do -> In Progress -> Completed -> To Do
+    const statusCycle = ["To Do", "In Progress", "Completed"];
+    const currentIndex = statusCycle.indexOf(task.status);
+    const newStatus = statusCycle[(currentIndex + 1) % 3];
+
+    setUpdatingTaskId(taskId);
+    try {
+      await updateTask(taskId, { status: newStatus });
+      toast.success(`Task marked as ${newStatus.toLowerCase()}!`, { theme });
+    } catch (err) {
+      toast.error("Failed to update task status.", { theme });
+    } finally {
+      setUpdatingTaskId(null);
+    }
   };
 
-  const filteredTasks = taskList.filter((task) => {
+  const onDeleteTask = async (taskId) => {
+    try {
+      const success = await deleteTask(taskId);
+      if (success) {
+        toast.success("Task deleted successfully!", { theme });
+      } else {
+        toast.error("Failed to delete task.", { theme });
+      }
+    } catch (err) {
+      toast.error("Failed to delete task.", { theme });
+    }
+  };
+
+  const filteredTasks = tasks.filter((task) => {
     const statusMatch =
       filter.status === "all" ||
-      (filter.status === "completed" && task.completed) ||
-      (filter.status === "pending" && !task.completed);
+      (filter.status === "completed" && task.status === "Completed") ||
+      (filter.status === "in-progress" && task.status === "In Progress") ||
+      (filter.status === "to-do" && task.status === "To Do");
 
     const priorityMatch =
       filter.priority === "all" || task.priority === filter.priority;
@@ -71,6 +103,19 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
     }
   };
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "Completed":
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case "In Progress":
+        return <Circle className="w-5 h-5 text-blue-500" />;
+      case "To Do":
+        return <Circle className="w-5 h-5 text-grey-500" />;
+      default:
+        return <Circle className="w-5 h-5" />;
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "No due date";
     const date = new Date(dateString);
@@ -81,8 +126,8 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
     });
   };
 
-  const isOverdue = (dueDate, completed) => {
-    if (!dueDate || completed) return false;
+  const isOverdue = (dueDate, status) => {
+    if (!dueDate || status === "Completed") return false;
     const due = new Date(dueDate);
     if (isNaN(due.getTime())) return false;
     const today = new Date();
@@ -123,7 +168,6 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Status Filter */}
           <div>
             <label
               className={`block text-sm font-medium ${
@@ -144,11 +188,11 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
               } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
             >
               <option value="all">All Tasks</option>
-              <option value="pending">Pending</option>
+              <option value="to-do">To Do</option>
+              <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
           </div>
-          {/* Priority Filter */}
           <div>
             <label
               className={`block text-sm font-medium ${
@@ -174,7 +218,6 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
               <option value="Low">Low</option>
             </select>
           </div>
-          {/* Category Filter */}
           <div>
             <label
               className={`block text-sm font-medium ${
@@ -228,7 +271,7 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
               className={`${
                 theme === "dark" ? "bg-gray-800" : "bg-white"
               } rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
-                task.completed
+                task.status === "Completed"
                   ? theme === "dark"
                     ? "border-green-800 bg-green-900/10"
                     : "border-green-200 bg-green-50"
@@ -242,131 +285,120 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
               }`}
             >
               <div className="p-4">
-                <div className="flex items-start space-x-3">
-                  {/* Checkbox */}
-                  <button
-                    onClick={() => toggleTaskCompletion(task._id)}
-                    className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                      task.completed
-                        ? "bg-green-500 border-green-500 text-white"
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onToggleStatus(task._id)}
+                      disabled={updatingTaskId === task._id}
+                      className={`${
+                        theme === "dark"
+                          ? "text-gray-400 hover:text-blue-400"
+                          : "text-gray-500 hover:text-blue-600"
+                      } transition-colors ${
+                        updatingTaskId === task._id
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                    >
+                      {getStatusIcon(task.status)}
+                    </button>
+                    <h3
+                      className={`font-semibold ${
+                        task.status === "Completed" ? "line-through" : ""
+                      } ${theme === "dark" ? "text-white" : "text-gray-900"}`}
+                    >
+                      {task.title}
+                    </h3>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => onEditTask && onEditTask(task)}
+                      className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
+                        theme === "dark"
+                          ? "text-gray-400 hover:bg-gray-600"
+                          : "text-gray-500 hover:bg-gray-100"
+                      }`}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteTask(task._id)}
+                      className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
+                        theme === "dark"
+                          ? "text-gray-400 hover:bg-red-900 hover:text-red-400"
+                          : "text-gray-500 hover:bg-red-100 hover:text-red-600"
+                      }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Task Details */}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-1">
+                      <Flag
+                        className={`w-3 h-3 ${getPriorityColor(task.priority)}`}
+                      />
+                      <span
+                        className={`font-medium ${getPriorityColor(
+                          task.priority
+                        )}`}
+                      >
+                        {task.priority}
+                      </span>
+                    </div>
+                    <div
+                      className={`flex items-center space-x-1 ${
+                        isOverdue(task.dueDate) && task.status !== "Completed"
+                          ? theme === "dark"
+                            ? "text-red-400 font-medium"
+                            : "text-red-600 font-medium"
+                          : theme === "dark"
+                          ? "text-gray-400"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      <Calendar className="w-3 h-3" />
+                      <span>{formatDate(task.dueDate)}</span>
+                      {isOverdue(task.dueDate) &&
+                        task.status !== "Completed" && (
+                          <span
+                            className={`${
+                              theme === "dark" ? "text-red-400" : "text-red-600"
+                            } font-semibold ml-1`}
+                          >
+                            (Overdue)
+                          </span>
+                        )}
+                    </div>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(
+                        task.category
+                      )}`}
+                    >
+                      <Tag className="w-3 h-3 mr-1" />
+                      {task.category}
+                    </span>
+                  </div>
+                  <span
+                    className={`font-medium ${
+                      task.status === "Completed"
+                        ? theme === "dark"
+                          ? "text-green-400"
+                          : "text-green-600"
+                        : task.status === "In Progress"
+                        ? theme === "dark"
+                          ? "text-blue-400"
+                          : "text-blue-600"
                         : theme === "dark"
-                        ? "border-gray-600 hover:border-green-500"
-                        : "border-gray-300 hover:border-green-400"
+                        ? "text-grey-400"
+                        : "text-grey-600"
                     }`}
                   >
-                    {task.completed && <Check className="w-3 h-3" />}
-                  </button>
-
-                  {/* Task Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4
-                          className={`text-sm font-medium transition-colors ${
-                            task.completed
-                              ? theme === "dark"
-                                ? "text-gray-400 line-through"
-                                : "text-gray-500 line-through"
-                              : theme === "dark"
-                              ? "text-white"
-                              : "text-gray-900"
-                          }`}
-                        >
-                          {task.name || task.title}
-                        </h4>
-
-                        {task.description && (
-                          <p
-                            className={`mt-1 text-sm ${
-                              task.completed
-                                ? theme === "dark"
-                                  ? "text-gray-500"
-                                  : "text-gray-400"
-                                : theme === "dark"
-                                ? "text-gray-400"
-                                : "text-gray-600"
-                            }`}
-                          >
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Task Meta Info */}
-                      <div className="flex flex-col items-end space-y-2 ml-4">
-                        {/* Category Badge */}
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(
-                            task.category
-                          )}`}
-                        >
-                          <Tag className="w-3 h-3 mr-1" />
-                          {task.category}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Task Details */}
-                    <div className="flex items-center justify-between mt-3 text-xs">
-                      <div className="flex items-center space-x-4">
-                        {/* Priority */}
-                        <div className="flex items-center space-x-1">
-                          <Flag
-                            className={`w-3 h-3 ${getPriorityColor(
-                              task.priority
-                            )}`}
-                          />
-                          <span
-                            className={`font-medium ${getPriorityColor(
-                              task.priority
-                            )}`}
-                          >
-                            {task.priority}
-                          </span>
-                        </div>
-
-                        {/* Due Date */}
-                        <div
-                          className={`flex items-center space-x-1 ${
-                            isOverdue(task.dueDate) && !task.completed
-                              ? theme === "dark"
-                                ? "text-red-400 font-medium"
-                                : "text-red-600 font-medium"
-                              : theme === "dark"
-                              ? "text-gray-400"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          <Calendar className="w-3 h-3" />
-                          <span>{formatDate(task.dueDate)}</span>
-                          {isOverdue(task.dueDate) && !task.completed && (
-                            <span
-                              className={`${
-                                theme === "dark"
-                                  ? "text-red-400"
-                                  : "text-red-600"
-                              } font-semibold ml-1`}
-                            >
-                              (Overdue)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Completion Status */}
-                      {task.completed && (
-                        <span
-                          className={`${
-                            theme === "dark"
-                              ? "text-green-400"
-                              : "text-green-600"
-                          } font-medium`}
-                        >
-                          ✓ Completed
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                    {task.status}
+                  </span>
                 </div>
               </div>
             </div>
@@ -406,7 +438,7 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
                   theme === "dark" ? "text-green-400" : "text-green-600"
                 }`}
               >
-                {filteredTasks.filter((t) => t.completed).length}
+                {filteredTasks.filter((t) => t.status === "Completed").length}
               </p>
               <p
                 className={`text-sm ${
@@ -422,14 +454,14 @@ const TaskList = ({ tasks = [], overdueCount = 0 }) => {
                   theme === "dark" ? "text-yellow-400" : "text-yellow-600"
                 }`}
               >
-                {filteredTasks.filter((t) => !t.completed).length}
+                {filteredTasks.filter((t) => t.status === "In Progress").length}
               </p>
               <p
                 className={`text-sm ${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
-                Pending
+                In Progress
               </p>
             </div>
             <div>
