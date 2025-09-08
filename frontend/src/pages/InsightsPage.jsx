@@ -1,10 +1,10 @@
 import React, { useContext, useState, useEffect, useRef } from "react";
 import { AppContext } from "../context/AppContext";
 import Chart from "chart.js/auto";
-import NavTab from "../components/NavTab";
-import StatCard from "../components/StatCard";
-import InsightCard from "../components/InsightCard";
-import ChartCard from "../components/ChartCard";
+import NavTab from "../components/insights/NavTab";
+import StatCard from "../components/insights/StatCard";
+import InsightCard from "../components/insights/InsightCard";
+import ChartCard from "../components/insights/ChartCard";
 import {
   BarChart3,
   TrendingUp,

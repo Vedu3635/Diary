@@ -1,5 +1,5 @@
 import { React, useContext } from "react";
-import { AppContext } from "../context/AppContext"; // Adjust path as needed
+import { AppContext } from "../../context/AppContext"; // Adjust path as needed
 
 const Footer = () => {
   const { theme } = useContext(AppContext);

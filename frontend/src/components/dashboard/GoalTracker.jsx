@@ -1,5 +1,5 @@
 import React, { useState, useContext } from "react";
-import { AppContext } from "../context/AppContext";
+import { AppContext } from "../../context/AppContext";
 const GoalTracker = ({ goals = [], isCompact = false, showActions = true }) => {
   const [goalList, setGoalList] = useState(goals);
   const { theme } = useContext(AppContext);

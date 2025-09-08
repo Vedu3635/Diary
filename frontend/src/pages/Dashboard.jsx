@@ -2,10 +2,10 @@ import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AppContext } from "../context/AppContext";
-import TaskList from "../components/TaskList";
-import JournalEntry from "../components/JournalEntry";
-import GoalTracker from "../components/GoalTracker";
-import TaskForm from "../components/TaskForm";
+import TaskList from "../components/dashboard/TaskList";
+import JournalEntry from "../components/dashboard/JournalEntry";
+import GoalTracker from "../components/dashboard/GoalTracker";
+import TaskForm from "../components/task/TaskForm";
 import { staticGoals } from "../data/staticData";
 
 const Dashboard = () => {

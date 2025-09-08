@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from "react";
 import { Search, Plus, Filter, AlertTriangle } from "lucide-react";
 import { AppContext } from "../context/AppContext";
-import TaskForm from "../components/TaskForm";
-import TaskList2 from "../components/TaskList2";
+import TaskForm from "../components/task/TaskForm";
+import TaskList2 from "../components/task/TaskList2";
 import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 

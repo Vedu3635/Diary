@@ -1,7 +1,7 @@
 import React, { useState, useContext } from "react";
 import { Menu, X, Sun, Moon } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AppContext } from "../context/AppContext";
+import { AppContext } from "../../context/AppContext";
 
 const Sidebar = () => {
   const { theme } = useContext(AppContext);

@@ -1,8 +1,8 @@
 import { Routes, Route } from "react-router-dom";
 import { useContext } from "react";
 import { ToastContainer } from "react-toastify";
-import NavBar from "./components/NavBar";
-import Sidebar from "./components/Sidebar";
+import NavBar from "./components/layout/NavBar";
+import Sidebar from "./components/layout/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import TasksPage from "./pages/TasksPage";
 import JournalPage from "./pages/JournalPage";

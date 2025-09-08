@@ -8,7 +8,7 @@ import {
   Flag,
   Tag,
 } from "lucide-react";
-import { AppContext } from "../context/AppContext";
+import { AppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
 
 const TaskList = ({ tasks = [], overdueCount = 0, onEditTask, theme }) => {
