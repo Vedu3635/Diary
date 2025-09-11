@@ -1,5 +1,6 @@
 import { createContext, useState, useMemo, useEffect } from "react";
 import axios from "axios";
+import { DateTime } from "luxon";
 
 export const AppContext = createContext();
 
@@ -102,10 +103,15 @@ export const AppProvider = ({ children }) => {
     }
     try {
       setError(null);
+
+      // 🔐 Ensure start/end are in UTC ISO format
+      const startISO = DateTime.fromISO(start, { zone: "utc" }).toISO();
+      const endISO = DateTime.fromISO(end, { zone: "utc" }).toISO();
+
       const response = await axios.get(
-        `${API_BASE_URL}/calendar/events?start=${start}&end=${end}`
+        `${API_BASE_URL}/calendar/events?start=${startISO}&end=${endISO}`
       );
-      return response.data; // Return the calendar events directly
+      return response.data;
     } catch (err) {
       console.error("Error fetching calendar events:", err);
       if (err.response?.status === 401) {
