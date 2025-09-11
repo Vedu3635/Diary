@@ -1,71 +1,46 @@
 const { RRule } = require("rrule");
 const Task = require("../models/Task");
 const JournalEntry = require("../models/JournalEntry");
+// import { DateTime } from "luxon";
+const { DateTime } = require("luxon");
 
 // Fetch calendar events (tasks and journal entries) for a date range
 exports.getCalendarEvents = async (req, res) => {
-  const { start, end, page = 1, limit = 100 } = req.query;
+  const { start, end } = req.query;
   const userId = req.user.userId; // From authMiddleware
-  // console.log("getCalendarEvents: Request received", {
-  //   userId,
-  //   start,
-  //   end,
-  //   page,
-  //   limit,
-  // });
 
   // Validate query parameters
   if (!start || !end) {
-    // console.log("getCalendarEvents: Missing start or end date");
     return res
       .status(400)
       .json({ message: "Start and end dates are required" });
   }
-  if (isNaN(page) || page < 1) {
-    // console.log("getCalendarEvents: Invalid page number", { page });
-    return res.status(400).json({ message: "Invalid page number" });
-  }
-  if (isNaN(limit) || limit < 1 || limit > 1000) {
-    // console.log("getCalendarEvents: Invalid limit", { limit });
-    return res.status(400).json({ message: "Invalid limit (1-1000)" });
-  }
-
-  const skip = (page - 1) * limit;
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-
-  // Validate dates
-  if (isNaN(startDate) || isNaN(endDate)) {
-    // console.log("getCalendarEvents: Invalid date format", { start, end });
-    return res.status(400).json({ message: "Invalid date format" });
-  }
-  if (startDate > endDate) {
-    // console.log("getCalendarEvents: Start date after end date", {
-    //   startDate,
-    //   endDate,
-    // });
-    return res
-      .status(400)
-      .json({ message: "Start date must be before end date" });
-  }
 
   try {
+    // ✅ Parse ISO strings as UTC
+    const startDate = DateTime.fromISO(start, { zone: "utc" });
+    const endDate = DateTime.fromISO(end, { zone: "utc" });
+
+    if (!startDate.isValid || !endDate.isValid) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+    if (startDate > endDate) {
+      return res
+        .status(400)
+        .json({ message: "Start date must be before end date" });
+    }
+
     // Fetch tasks (non-recurring and recurring)
     const tasks = await Task.find({
       userId,
       $or: [
-        // Non-recurring tasks in date range
-        { dueDate: { $gte: startDate, $lte: endDate } },
-        // Recurring tasks that might generate events in date range
+        { dueDate: { $gte: startDate.toJSDate(), $lte: endDate.toJSDate() } },
         {
           recurrenceRule: { $ne: null },
-          dueDate: { $lte: endDate }, // Optimization: exclude tasks starting after end date
+          dueDate: { $lte: endDate.toJSDate() },
         },
       ],
-    })
-      .skip(skip)
-      .limit(Number(limit))
-      .lean();
+    }).lean();
 
     // console.log("getCalendarEvents: Tasks fetched", {
     //   taskCount: tasks.length,
@@ -73,27 +48,29 @@ exports.getCalendarEvents = async (req, res) => {
 
     // Process tasks into events
     const taskEvents = [];
-    tasks.forEach((task) => {
+
+    for (const task of tasks) {
       if (task.recurrenceRule && task.dueDate) {
         try {
-          // Parse RRule string
           const rule = RRule.fromString(
-            `DTSTART:${
-              new Date(task.dueDate)
-                .toISOString()
-                .replace(/[-:]/g, "")
-                .split(".")[0]
-            }Z\n${task.recurrenceRule}`
+            `DTSTART:${DateTime.fromJSDate(task.dueDate)
+              .toUTC()
+              .toFormat("yyyyMMdd'T'HHmmss'Z'")}\n${task.recurrenceRule}`
           );
-          // Get occurrences in date range
-          const dates = rule.between(startDate, endDate, true);
+
+          const dates = rule.between(
+            startDate.toJSDate(),
+            endDate.toJSDate(),
+            true
+          );
           dates.forEach((date) => {
+            const dt = DateTime.fromJSDate(date).toUTC();
             taskEvents.push({
-              id: `${task._id}-${date.toISOString().replace(/[:.]/g, "-")}`,
-              userId: req.user.userId,
+              id: `${task._id}-${dt.toISO().replace(/[:.]/g, "-")}`,
+              userId,
               title: task.title,
-              start: date.toISOString(),
-              end: new Date(date.getTime() + 30 * 60 * 1000).toISOString(),
+              start: dt.toISO(),
+              end: dt.plus({ minutes: 30 }).toISO(),
               type: "task",
               status: task.status,
               completed: task.status === "Completed",
@@ -109,15 +86,13 @@ exports.getCalendarEvents = async (req, res) => {
           );
         }
       } else if (task.dueDate) {
-        // Non-recurring task
+        const dt = DateTime.fromJSDate(task.dueDate).toUTC();
         taskEvents.push({
           id: task._id.toString(),
-          userId: req.user.userId,
+          userId,
           title: task.title,
-          start: new Date(task.dueDate).toISOString(),
-          end: new Date(
-            new Date(task.dueDate).getTime() + 30 * 60 * 1000
-          ).toISOString(),
+          start: dt.toISO(),
+          end: dt.plus({ minutes: 30 }).toISO(),
           type: "task",
           status: task.status,
           completed: task.status === "Completed",
@@ -126,37 +101,37 @@ exports.getCalendarEvents = async (req, res) => {
           content: task.description || "",
         });
       }
-    });
+    }
 
     // Fetch journal entries
     const journalEntries = await JournalEntry.find({
-      userId: req.user.userId,
-      date: { $gte: startDate, $lte: endDate },
-    })
-      .skip(skip)
-      .limit(Number(limit))
-      .lean();
+      userId,
+      date: { $gte: startDate.toJSDate(), $lte: endDate.toJSDate() },
+    }).lean();
 
     // console.log("getCalendarEvents: Journal entries fetched", {
     //   journalCount: journalEntries.length,
     // });
 
     // Process journal entries into events
-    const journalEvents = journalEntries.map((entry) => ({
-      id: entry._id.toString(),
-      userId: req.user.userId,
-      title: entry.title,
-      start: new Date(entry.date).toISOString(),
-      end: new Date(entry.date).toISOString(),
-      type: "journal",
-      content: entry.content || "",
-      mood: entry.mood || "neutral",
-      completed: false,
-    }));
+    const journalEvents = journalEntries.map((entry) => {
+      const dt = DateTime.fromJSDate(entry.date).toUTC();
+      return {
+        id: entry._id.toString(),
+        userId,
+        title: entry.title,
+        start: dt.toISO(),
+        end: dt.toISO(),
+        type: "journal",
+        content: entry.content || "",
+        mood: entry.mood || "neutral",
+        completed: false,
+      };
+    });
 
     // Combine and sort events by start date
     const events = [...taskEvents, ...journalEvents].sort(
-      (a, b) => new Date(a.start) - new Date(b.start)
+      (a, b) => DateTime.fromISO(a.start) - DateTime.fromISO(b.start)
     );
 
     // console.log("getCalendarEvents: Sending response", {
