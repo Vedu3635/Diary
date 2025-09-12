@@ -169,8 +169,9 @@ const CalendarPage = () => {
     if (!date) return [];
     const dateString = date.toISOString().split("T")[0];
     const entries = events.filter((entry) => {
-      const entryDate = entry.start || entry.date;
-      return entryDate && entryDate.split("T")[0] === dateString;
+      const entryDate = entry.start ?? entry.date;
+
+      return entryDate.toFormat("yyyy-MM-dd") === dateString;
     });
     // console.log(`Entries for ${dateString}:`, entries);
     return entries;

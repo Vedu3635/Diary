@@ -4,11 +4,19 @@ import { AppContext } from "../context/AppContext";
 import TaskForm from "../components/task/TaskForm";
 import TaskList2 from "../components/task/TaskList2";
 import { toast } from "react-toastify";
-import { Link } from "react-router-dom";
+import { DateTime } from "luxon";
 
 const TasksPage = () => {
-  const { theme, tasks, createTask, updateTask, deleteTask, error, token } =
-    useContext(AppContext);
+  const {
+    theme,
+    tasks,
+    createTask,
+    updateTask,
+    deleteTask,
+    error,
+    token,
+    DateUtils,
+  } = useContext(AppContext);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -20,7 +28,7 @@ const TasksPage = () => {
 
   const isOverdue = (dueDate, status) => {
     if (!dueDate || status === "Completed") return false;
-    return new Date(dueDate) < new Date();
+    return dueDate < DateTime.now().setZone("utc");
   };
 
   const overdueCount = tasks.filter((task) =>
@@ -32,9 +40,7 @@ const TasksPage = () => {
   }, [tasks]);
 
   useEffect(() => {
-    if (error) {
-      toast.error(error, { theme });
-    }
+    if (error) toast.error(error, { theme });
   }, [error, theme]);
 
   useEffect(() => {
@@ -42,28 +48,25 @@ const TasksPage = () => {
       const matchesSearch =
         task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
       let matchesStatus = true;
+      const today = DateTime.now().startOf("day");
+
       if (statusFilter === "overdue") {
         matchesStatus = isOverdue(task.dueDate, task.status);
       } else if (statusFilter === "today") {
-        const today = new Date();
-        const due = new Date(task.dueDate);
         matchesStatus =
-          task.dueDate &&
-          due.getDate() === today.getDate() &&
-          due.getMonth() === today.getMonth() &&
-          due.getFullYear() === today.getFullYear();
+          task.dueDate && DateUtils.toLocal(task.dueDate).hasSame(today, "day");
       } else if (statusFilter === "thisweek") {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-        const due = new Date(task.dueDate);
-        matchesStatus = task.dueDate && due >= today && due <= weekFromNow;
+        const weekEnd = today.plus({ days: 7 });
+        const due = task.dueDate ? DateUtils.toLocal(task.dueDate) : null;
+        matchesStatus = due && due >= today && due <= weekEnd;
       } else if (statusFilter === "noduedate") {
         matchesStatus = !task.dueDate;
       } else if (statusFilter !== "all") {
         matchesStatus = task.status === statusFilter;
       }
+
       const matchesPriority =
         priorityFilter === "all" || task.priority === priorityFilter;
       const matchesCategory =
@@ -74,7 +77,14 @@ const TasksPage = () => {
     });
 
     setFilteredTasks(filtered);
-  }, [tasks, searchTerm, statusFilter, priorityFilter, categoryFilter]);
+  }, [
+    tasks,
+    searchTerm,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    DateUtils,
+  ]);
 
   const handleCreateTask = () => {
     if (!token) {
@@ -141,6 +151,7 @@ const TasksPage = () => {
     const statusOrder = ["To Do", "In Progress", "Completed"];
     const currentIndex = statusOrder.indexOf(task.status);
     const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+
     await updateTask(taskId, { ...task, status: nextStatus });
     toast.success(`Task status updated to ${nextStatus}!`, { theme });
   };
@@ -223,19 +234,8 @@ const TasksPage = () => {
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">New Task</span>
             </button>
-            <Link
-              to="/archive"
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                theme === "dark"
-                  ? "border-gray-600 text-gray-300 hover:bg-gray-700"
-                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <span className="hidden sm:inline">View Archive</span>
-            </Link>
           </div>
         </div>
-
         <div
           className={`${
             theme === "dark"
@@ -390,11 +390,12 @@ const TasksPage = () => {
           </div>
         </div>
         <TaskList2
-          tasks={filteredTasks}
+          tasks={filteredTasks} // Pass UTC DateTime objects directly
           onEditTask={handleEditTask}
           onDeleteTask={handleDeleteTask}
           onToggleStatus={handleToggleStatus}
           theme={theme}
+          DateUtils={DateUtils}
         />
         <TaskForm
           isOpen={isTaskFormOpen}
@@ -402,6 +403,7 @@ const TasksPage = () => {
           task={editingTask}
           onSave={handleSaveTask}
           theme={theme}
+          DateUtils={DateUtils}
         />
       </div>
     </div>
