@@ -5,6 +5,9 @@ import { DateTime } from "luxon";
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
+  // ------------------------------
+  // State
+  // ------------------------------
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const [tasks, setTasks] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
@@ -13,7 +16,49 @@ export const AppProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   const API_BASE_URL = "http://localhost:5000/api";
+  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // ------------------------------
+  // Date Conversion Utilities
+  // ------------------------------
+  const DateUtils = {
+    toUTC(localDate) {
+      if (!localDate) return null;
+      const dt =
+        typeof localDate === "string"
+          ? DateTime.fromISO(localDate, { zone: userTimeZone })
+          : localDate; // Already a DateTime object
+      return dt.isValid ? dt.toUTC().toISO() : null;
+    },
+    toLocal(utcDate) {
+      if (!utcDate) return null;
+      const dt =
+        typeof utcDate === "string"
+          ? DateTime.fromISO(utcDate, { zone: "utc" })
+          : utcDate; // Already a DateTime object
+      return dt.isValid ? dt.setZone(userTimeZone) : null;
+    },
+    formatForDisplay(utcDate, format = "yyyy-MM-dd HH:mm") {
+      if (!utcDate) return "";
+      const dt =
+        typeof utcDate === "string"
+          ? DateTime.fromISO(utcDate, { zone: "utc" })
+          : utcDate;
+      return dt.isValid ? dt.setZone(userTimeZone).toFormat(format) : "";
+    },
+    toDateInput(utcDate) {
+      // Convert UTC DateTime to local date string for <input type="date">
+      if (!utcDate) return "";
+      const dt =
+        typeof utcDate === "string"
+          ? DateTime.fromISO(utcDate, { zone: "utc" })
+          : utcDate;
+      return dt.isValid ? dt.setZone(userTimeZone).toISODate() : "";
+    },
+  };
 
+  // ------------------------------
+  // JWT parser
+  // ------------------------------
   const parseJwt = (token) => {
     try {
       const base64Url = token.split(".")[1];
@@ -31,11 +76,12 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Restore session from localStorage on app mount
+  // ------------------------------
+  // Restore session on mount
+  // ------------------------------
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedUserId = localStorage.getItem("userId");
-    // console.log("Restoring session:", { storedToken, storedUserId });
     if (storedToken) {
       setToken(storedToken);
       let userIdFromToken = null;
@@ -52,11 +98,13 @@ export const AppProvider = ({ children }) => {
       }
       setUserId(userIdFromToken);
     } else {
-      // console.log("No session found in localStorage");
       localStorage.removeItem("userId"); // Ensure no stale userId
     }
   }, []);
 
+  // ------------------------------
+  // Theme handling
+  // ------------------------------
   useEffect(() => {
     localStorage.setItem("theme", theme);
     if (theme === "dark") {
@@ -66,6 +114,9 @@ export const AppProvider = ({ children }) => {
     }
   }, [theme]);
 
+  // ------------------------------
+  // Fetch base data if logged in
+  // ------------------------------
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -77,6 +128,10 @@ export const AppProvider = ({ children }) => {
     }
   }, [token]);
 
+  // ------------------------------
+  // Fetch tasks & journal entries
+  // Store as UTC DateTime
+  // ------------------------------
   const fetchData = async () => {
     try {
       setError(null);
@@ -84,8 +139,28 @@ export const AppProvider = ({ children }) => {
         axios.get(`${API_BASE_URL}/tasks`),
         axios.get(`${API_BASE_URL}/journal`),
       ]);
-      setTasks(tasksRes.data);
-      setJournalEntries(journalRes.data);
+
+      // ✅ Convert any date fields to DateTimes
+      setTasks(
+        tasksRes.data.map((task) => ({
+          ...task,
+          dueDate: task.dueDate
+            ? DateTime.fromISO(task.dueDate, { zone: "utc" })
+            : null,
+          createdAt: task.createdAt
+            ? DateTime.fromISO(task.createdAt, { zone: "utc" })
+            : null,
+        }))
+      );
+
+      setJournalEntries(
+        journalRes.data.map((entry) => ({
+          ...entry,
+          createdAt: entry.createdAt
+            ? DateTime.fromISO(entry.createdAt, { zone: "utc" })
+            : null,
+        }))
+      );
     } catch (err) {
       console.error("Error fetching data:", err);
       if (err.response?.status === 401) {
@@ -96,6 +171,11 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // ------------------------------
+  // Calendar Events
+  // start/end: UTC ISO strings
+  // Returns UTC DateTime objects
+  // ------------------------------
   const fetchCalendarEvents = async (start, end) => {
     if (!token || !userId) {
       setError("Please log in to view calendar events.");
@@ -111,7 +191,12 @@ export const AppProvider = ({ children }) => {
       const response = await axios.get(
         `${API_BASE_URL}/calendar/events?start=${startISO}&end=${endISO}`
       );
-      return response.data;
+      // ✅ Convert returned dates to DateTime
+      return response.data.map((evt) => ({
+        ...evt,
+        start: DateTime.fromISO(evt.start, { zone: "utc" }),
+        end: DateTime.fromISO(evt.end, { zone: "utc" }),
+      }));
     } catch (err) {
       console.error("Error fetching calendar events:", err);
       if (err.response?.status === 401) {
@@ -128,6 +213,9 @@ export const AppProvider = ({ children }) => {
     logout();
   };
 
+  // ------------------------------
+  // Task CRUD
+  // ------------------------------
   const createTask = async (taskData) => {
     if (!token) {
       setError("Please log in to create tasks.");
@@ -135,22 +223,47 @@ export const AppProvider = ({ children }) => {
     }
     try {
       setError(null);
+
+      // ✅ Convert any DateTime to ISO before sending
+      const payload = {
+        ...taskData,
+        dueDate: DateUtils.toUTC(taskData.dueDate), // Handle string or DateTime
+      };
+
       const tempId = `temp-${Date.now()}`;
-      const tempTask = { ...taskData, _id: tempId };
+      const tempTask = {
+        ...taskData,
+        _id: tempId,
+        dueDate: taskData.dueDate
+          ? DateTime.fromISO(taskData.dueDate, { zone: userTimeZone })
+          : null,
+      };
       setTasks((prev) => [...prev, tempTask]);
-      const response = await axios.post(`${API_BASE_URL}/tasks`, taskData);
+
+      const response = await axios.post(`${API_BASE_URL}/tasks`, payload);
+
       setTasks((prev) =>
-        prev.map((task) => (task._id === tempId ? response.data : task))
+        prev.map((task) =>
+          task._id === tempId
+            ? {
+                ...response.data,
+                dueDate: response.data.dueDate
+                  ? DateTime.fromISO(response.data.dueDate, { zone: "utc" })
+                  : null,
+                createdAt: response.data.createdAt
+                  ? DateTime.fromISO(response.data.createdAt, { zone: "utc" })
+                  : null,
+              }
+            : task
+        )
       );
+
       return response.data;
     } catch (err) {
       console.error("Error creating task:", err);
       setTasks((prev) => prev.filter((task) => task._id !== tempId));
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      } else {
-        setError("Failed to create task. Please try again.");
-      }
+      if (err.response?.status === 401) handleUnauthorized();
+      else setError("Failed to create task. Please try again.");
       return null;
     }
   };
@@ -160,21 +273,51 @@ export const AppProvider = ({ children }) => {
       setError("Please log in to update tasks.");
       return null;
     }
+    const originalTask = tasks.find((task) => task._id === taskId);
     try {
       setError(null);
-      const originalTask = tasks.find((task) => task._id === taskId);
+      const payload = {
+        ...taskData,
+        dueDate: DateUtils.toUTC(taskData.dueDate), // Handle string or DateTime
+      };
+
       setTasks((prev) =>
         prev.map((task) =>
-          task._id === taskId ? { ...task, ...taskData } : task
+          task._id === taskId
+            ? {
+                ...task,
+                ...taskData,
+                dueDate: taskData.dueDate
+                  ? typeof taskData.dueDate === "string"
+                    ? DateTime.fromISO(taskData.dueDate, { zone: userTimeZone })
+                    : taskData.dueDate
+                  : null,
+              }
+            : task
         )
       );
+
       const response = await axios.put(
         `${API_BASE_URL}/tasks/${taskId}`,
-        taskData
+        payload
       );
+
       setTasks((prev) =>
-        prev.map((task) => (task._id === taskId ? response.data : task))
+        prev.map((task) =>
+          task._id === taskId
+            ? {
+                ...response.data,
+                dueDate: response.data.dueDate
+                  ? DateTime.fromISO(response.data.dueDate, { zone: "utc" })
+                  : null,
+                createdAt: response.data.createdAt
+                  ? DateTime.fromISO(response.data.createdAt, { zone: "utc" })
+                  : null,
+              }
+            : task
+        )
       );
+
       return response.data;
     } catch (err) {
       console.error("Error updating task:", err);
@@ -215,99 +358,9 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const createJournalEntry = async (entryData) => {
-    if (!token) {
-      setError("Please log in to create journal entries.");
-      return null;
-    }
-    try {
-      setError(null);
-      const tempId = `temp-${Date.now()}`;
-      const tempEntry = { ...entryData, _id: tempId };
-      setJournalEntries((prev) => [...prev, tempEntry]);
-      const response = await axios.post(`${API_BASE_URL}/journal`, entryData);
-      setJournalEntries((prev) =>
-        prev.map((entry) => (entry._id === tempId ? response.data : entry))
-      );
-      return response.data;
-    } catch (err) {
-      console.error("Error creating journal entry:", err);
-      setJournalEntries((prev) => prev.filter((entry) => entry._id !== tempId));
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      } else {
-        setError("Failed to create journal entry. Please try again.");
-      }
-      return null;
-    }
-  };
-
-  const updateJournalEntry = async (entryId, entryData) => {
-    if (!token) {
-      setError("Please log in to update journal entries.");
-      return null;
-    }
-    try {
-      setError(null);
-      const originalEntry = journalEntries.find(
-        (entry) => entry._id === entryId
-      );
-      setJournalEntries((prev) =>
-        prev.map((entry) =>
-          entry._id === entryId ? { ...entry, ...entryData } : entry
-        )
-      );
-      const response = await axios.put(
-        `${API_BASE_URL}/journal/${entryId}`,
-        entryData
-      );
-      setJournalEntries((prev) =>
-        prev.map((entry) => (entry._id === entryId ? response.data : entry))
-      );
-      return response.data;
-    } catch (err) {
-      console.error("Error updating journal entry:", err);
-      setJournalEntries((prev) =>
-        prev.map((entry) => (entry._id === entryId ? originalEntry : entry))
-      );
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      } else {
-        setError("Failed to update journal entry. Please try again.");
-      }
-      return null;
-    }
-  };
-
-  const deleteJournalEntry = async (entryId) => {
-    if (!token) {
-      setError("Please log in to delete journal entries.");
-      return false;
-    }
-    try {
-      setError(null);
-      const originalEntry = journalEntries.find(
-        (entry) => entry._id === entryId
-      );
-      setJournalEntries((prev) =>
-        prev.filter((entry) => entry._id !== entryId)
-      );
-      await axios.delete(`${API_BASE_URL}/journal/${entryId}`);
-      return true;
-    } catch (err) {
-      console.error("Error deleting journal entry:", err);
-      setJournalEntries((prev) =>
-        [...prev, originalEntry].sort((a, b) => a._id.localeCompare(b._id))
-      );
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      } else {
-        setError("Failed to delete journal entry. Please try again.");
-      }
-      return false;
-    }
-  };
-
+  // ------------------------------
+  // Auth
+  // ------------------------------
   const login = async (email, password) => {
     try {
       setError(null);
@@ -345,6 +398,9 @@ export const AppProvider = ({ children }) => {
     delete axios.defaults.headers.common["Authorization"];
   };
 
+  // ------------------------------
+  // Context Value
+  // ------------------------------
   const contextValue = useMemo(
     () => ({
       theme,
@@ -362,10 +418,8 @@ export const AppProvider = ({ children }) => {
       createTask,
       updateTask,
       deleteTask,
-      createJournalEntry,
-      updateJournalEntry,
-      deleteJournalEntry,
       fetchCalendarEvents,
+      DateUtils,
     }),
     [theme, tasks, journalEntries, token, userId, error]
   );

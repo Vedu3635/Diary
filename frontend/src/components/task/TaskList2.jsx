@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   Edit3,
   Trash2,
@@ -10,6 +10,8 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { DateTime } from "luxon";
+// import { AppContext } from "../../context/AppContext";
 
 const TaskList2 = ({
   tasks,
@@ -17,7 +19,9 @@ const TaskList2 = ({
   onDeleteTask,
   onToggleStatus,
   theme,
+  DateUtils,
 }) => {
+  // const { DateUtils } = useContext(AppContext);
   const [collapsedSections, setCollapsedSections] = useState({
     overdue: false,
     today: false,
@@ -28,56 +32,42 @@ const TaskList2 = ({
   });
 
   const toggleSection = (section) => {
-    setCollapsedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+    setCollapsedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
   const isOverdue = (dueDate, status) => {
     if (!dueDate || status === "Completed") return false;
-    return new Date(dueDate) < new Date().setHours(0, 0, 0, 0);
+    return dueDate < DateTime.now().setZone("utc");
   };
 
   const isDueToday = (dueDate) => {
     if (!dueDate) return false;
-    const today = new Date();
-    const due = new Date(dueDate);
-    return (
-      due.getDate() === today.getDate() &&
-      due.getMonth() === today.getMonth() &&
-      due.getFullYear() === today.getFullYear()
-    );
+    return dueDate.setZone("local").hasSame(DateTime.now(), "day");
   };
 
   const isDueThisWeek = (dueDate) => {
     if (!dueDate) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return due >= today && due <= weekFromNow;
+    const today = DateTime.now().startOf("day");
+    const weekEnd = today.plus({ days: 7 });
+    const due = dueDate.setZone("local");
+    return due >= today && due <= weekEnd;
   };
 
   const isDueLater = (dueDate) => {
     if (!dueDate) return false;
-    const today = new Date();
-    const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return new Date(dueDate) > weekFromNow;
+    const weekEnd = DateTime.now().plus({ days: 7 }).endOf("day");
+    return dueDate.setZone("local") > weekEnd;
   };
 
   const isWithinLast30Days = (date) => {
     if (!date) return false;
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    return new Date(date) >= thirtyDaysAgo;
+    const thirtyDaysAgo = DateTime.now().minus({ days: 30 });
+    return date >= thirtyDaysAgo;
   };
 
   const getDaysOverdue = (dueDate) => {
     if (!dueDate) return 0;
-    const today = new Date();
-    const due = new Date(dueDate);
-    return Math.ceil((today - due) / (1000 * 60 * 60 * 24));
+    return Math.ceil(DateTime.now().diff(dueDate, "days").days);
   };
 
   const getPriorityColor = (priority) => {
@@ -118,15 +108,6 @@ const TaskList2 = ({
           : "bg-green-100 text-green-800",
     };
     return colors[status] || colors["To Do"];
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
   };
 
   const groupedTasks = {
@@ -182,13 +163,10 @@ const TaskList2 = ({
           >
             <AlertTriangle className="w-4 h-4" />
             <span className="text-xs font-medium">
-              {daysOverdue === 1
-                ? "1 day overdue"
-                : `${daysOverdue} days overdue`}
+              {daysOverdue} day{daysOverdue > 1 ? "s" : ""} overdue
             </span>
           </div>
         )}
-
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <button
@@ -236,7 +214,6 @@ const TaskList2 = ({
             </button>
           </div>
         </div>
-
         {task.description && (
           <p
             className={`text-sm mb-3 ${
@@ -246,7 +223,6 @@ const TaskList2 = ({
             {task.description}
           </p>
         )}
-
         <div className="flex flex-wrap gap-2 mb-3">
           <span
             className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
@@ -274,7 +250,6 @@ const TaskList2 = ({
             </span>
           )}
         </div>
-
         <div
           className={`space-y-1 text-xs ${
             theme === "dark" ? "text-gray-400" : "text-gray-500"
@@ -283,12 +258,16 @@ const TaskList2 = ({
           {task.dueDate && (
             <div className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              <span>Due {formatDate(task.dueDate)}</span>
+              <span>
+                Due {DateUtils.formatForDisplay(task.dueDate, "yyyy-MM-dd")}
+              </span>
             </div>
           )}
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            <span>Created {formatDate(task.createdAt)}</span>
+            <span>
+              Created {DateUtils.formatForDisplay(task.createdAt, "yyyy-MM-dd")}
+            </span>
           </div>
         </div>
       </div>
@@ -297,9 +276,7 @@ const TaskList2 = ({
 
   const renderSection = (title, emoji, tasks, sectionKey, bgColor) => {
     if (tasks.length === 0) return null;
-
     const isCollapsed = collapsedSections[sectionKey];
-
     return (
       <div className="mb-6">
         <button
@@ -341,7 +318,6 @@ const TaskList2 = ({
             />
           )}
         </button>
-
         {!isCollapsed && (
           <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {tasks.map((task) => renderTaskCard(task, sectionKey))}

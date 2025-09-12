@@ -1,21 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { createPortal } from "react-dom";
+// import { AppContext } from "../../context/AppContext";
 
-const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
+const TaskForm = ({ isOpen, onClose, task, onSave, theme, DateUtils }) => {
+  // const { DateUtils } = useContext(AppContext);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     status: "To Do",
     priority: "medium",
     category: "",
-    dueDate: "",
+    dueDate: "", // Store as local ISO string (e.g., '2025-09-12')
   });
 
   useEffect(() => {
-    const formatDateForInput = (isoDate) => {
-      if (!isoDate) return "";
-      return isoDate.slice(0, 10);
-    };
     if (task) {
       setFormData({
         title: task.title || "",
@@ -23,7 +21,7 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
         status: task.status || "To Do",
         priority: task.priority || "medium",
         category: task.category || "",
-        dueDate: formatDateForInput(task.dueDate),
+        dueDate: DateUtils.toDateInput(task.dueDate), // Convert UTC DateTime to local date string
       });
     } else {
       setFormData({
@@ -35,23 +33,23 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
         dueDate: "",
       });
     }
-  }, [task, isOpen]);
+  }, [task, isOpen, DateUtils]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    onSave({ ...formData, dueDate: formData.dueDate || null }); // Send local date string
     onClose();
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  const handleDateChange = (e) => {
+    const value = e.target.value; // e.g., '2025-09-12'
+    setFormData((prev) => ({ ...prev, dueDate: value }));
+  };
+
+  if (!isOpen) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-4"
-      key="task-form-modal"
-    >
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-4">
       <div
         className={`${
           theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
@@ -65,7 +63,6 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
           >
             {task ? "Edit Task" : "Create New Task"}
           </h2>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label
@@ -90,7 +87,6 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                 placeholder="Enter task title"
               />
             </div>
-
             <div>
               <label
                 className={`block text-sm font-medium mb-1 ${
@@ -116,7 +112,6 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                 placeholder="Enter task description"
               />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label
@@ -142,7 +137,6 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                   <option value="Completed">Completed</option>
                 </select>
               </div>
-
               <div>
                 <label
                   className={`block text-sm font-medium mb-1 ${
@@ -172,7 +166,6 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                 </select>
               </div>
             </div>
-
             <div>
               <label
                 className={`block text-sm font-medium mb-1 ${
@@ -192,7 +185,7 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                     ? "border-gray-600 bg-gray-700 text-white"
                     : "border-gray-300 bg-white text-gray-900"
                 }`}
-                placeholder="e.g., Development, Design, Marketing"
+                placeholder="e.g., Development, Design"
               />
             </div>
             <div>
@@ -206,9 +199,7 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
               <input
                 type="date"
                 value={formData.dueDate}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
-                }
+                onChange={handleDateChange}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   theme === "dark"
                     ? "border-gray-600 bg-gray-700 text-white"
@@ -216,7 +207,6 @@ const TaskForm = ({ isOpen, onClose, task, onSave, theme }) => {
                 }`}
               />
             </div>
-
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
